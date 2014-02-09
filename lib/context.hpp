@@ -1,0 +1,4 @@
+#include <memory>
+
+class context
+{};

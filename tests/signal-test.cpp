@@ -1,6 +1,9 @@
 #include "signal.hpp"
 
 #include <iostream>
+#include <algorithm>
+
+#include <cassert>
 
 using namespace pac;
 
@@ -8,96 +11,97 @@ struct Server
 {
 	int even = 0;
 
-	pac::signal<bool(int)> sigconnect;
-	pac::signal<bool(float)> sigdisconnect;
+	pac::signal<int(int)> sigadd;
+	pac::signal<int(int)> sigsub;
 
-	void Update()
+	typename pac::signal<int(int)>::results_type
+	Add( int in )
 	{
-		++even;
-		if ( even % 2 == 0 && even < 10 )
-			sigconnect.emit( even );
+		return sigadd.emit( in );
 	}
 
-	void Disconnect()
+	typename pac::signal<int(int)>::results_type
+	Sub( int in )
 	{
-		sigdisconnect.emit( 3.1415 );
+		return sigsub.emit( in );
 	}
 };
 
 struct Client
 {
 	Server& server;
-	connection con_con;
-	connection con_dis;
+	connection con_add;
+	connection con_sub;
 
 	Client(Server& s)
 		: server(s)
 	{
-		con_con =
-			server.sigconnect.connect(
-				this, &Client::OnConnect);
+		con_add =
+			server.sigadd.connect(
+				this, &Client::OnAdd);
 		BARK;
-		con_dis =
-			server.sigdisconnect.connect(
-				this, &Client::OnDisconnect);
+		con_sub =
+			server.sigsub.connect(
+				this, &Client::OnSub);
 	}
 
-	bool OnConnect(int)
+	int OnAdd( int in )
 	{
-		std::cout << "Connected!\n";
-
-		{
-			connection_block block( con_con );
-			server.Update();
-			std::cout << "BERP!\n";
-			server.Update();
-			BARK;
-		}
-
-		// BARK;
-		std::cout << "DIS the CON\n";
-		server.sigconnect.disconnect(con_con);
-
-		// BARK;
-		// server.Update();
-		// server.Update();
-
-		return true;
+		return in * 2;
 	}
 
-	bool OnDisconnect(float)
+	int OnSub( int in )
 	{
-		std::cout << "Disconnected!\n";
-		return false;
+		return in - 2;
 	}
 };
 
-int main(int argc, char *argv[])
+int another_add( int in )
+{
+	return in + 7;
+}
+
+int another_dec( int in )
+{
+	return in -7;
+}
+
+int main(int, char *[])
 {
 	Server s;
 	Client *c = new Client{s};
 
-	BARK;
-	BARK;
-	s.Update();
-
-	s.Update();
-	//s.sigconnect.disconnect(c->con_con);
-
-	s.Disconnect();
+	auto r1 = s.Add( 5 );
+	// should be 5 * 2 == { 10 }
+	assert( std::accumulate( r1.begin(), r1.end(), 0 ) == 10 );
 
 	{
-		connection_block block( c->con_dis );
-		s.Disconnect();
+		auto con = s.sigadd.connect( another_add );
+		auto r2 = s.Add( 5 );
+		// should be { 10, 12 }
+		assert( std::accumulate( r2.begin(), r2.end(), 0 ) == 22 );
+
+		con.disconnect();
+
+		auto r3 = s.Add( 5 );
+		// should have lost above connection - return to { 10 }
+		assert( std::accumulate( r3.begin(), r3.end(), 0 ) == 10 );
+
+		con = s.sigadd.connect( another_add );
+		auto r4 = s.Add( 5 );
+		// should be { 10, 12 }
+		assert( std::accumulate( r4.begin(), r4.end(), 0 ) == 22 );
 	}
 
-	delete c;
+	{
+		auto r1 = s.Add( 5 );
+		// should have lost above connection - return to { 10 }
+		assert( std::accumulate( r1.begin(), r1.end(), 0 ) == 10 );
+	}
 
-	BARK;
-	s.Update();
-	BARK;
-
-	s.Disconnect();
+	auto r2 = s.Sub( 3 );
+	for ( auto r : r2 )
+		std::cout << r << "\n";
 
 	return 0;
 }

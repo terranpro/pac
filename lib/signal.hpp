@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Mon Feb 17 04:53:25 KST 2014
+ * Last modified: Sun Feb 23 00:39:51 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -180,12 +180,72 @@ struct hash<pac::connection>
 
 namespace pac {
 
+template<class Signature>
+struct invoker;
+
+template<class Ret, class... Args>
+struct invoker<Ret(Args...)>
+{
+	using return_type = Ret;
+	using results_type = std::vector<return_type>;
+
+	template<class SlotIt>
+	results_type dispatch(SlotIt beg, SlotIt end,
+	                      Args... args)
+	{
+		results_type results;
+		auto it = beg;
+
+		for ( ; it != end; ++it ) {
+			if ( it->second->blocked )
+				continue;
+			BARK;
+
+			results.push_back(
+				std::move( it->second->callback( std::forward<Args>(args)... ) ) );
+		}
+
+		return std::move( results );
+	}
+};
+
+template<class... Args>
+struct invoker<void(Args...)>
+{
+	using return_type = void;
+	using results_type = void;
+
+	using callback_type = callback<void, Args...>;
+	using slot_type = slot<callback_type>;
+
+	template<class SlotIt>
+	return_type dispatch(SlotIt beg, SlotIt end,
+	                     Args... args)
+	{
+		auto it = beg;
+
+		for ( ; it != end; ++it ) {
+			if ( it->second->blocked )
+				continue;
+			BARK;
+
+			it->second->callback( std::forward<Args>(args)... );
+		}
+
+	}
+
+};
+
 template<class Ret, class... Args>
 class signal<Ret(Args...)>
 {
 public:
+	using results_type = typename invoker<Ret(Args...)>::results_type;
+
 	using callback_type = callback<Ret, Args...>;
 	using slot_type = slot<callback_type>;
+
+	friend class invoker<Ret(Args...)>;
 
 private:
 	//	std::unordered_map< std::size_t, callback_type > callbacks;
@@ -249,31 +309,56 @@ public:
 		BARK_THIS;
 	}
 
-	void dispatch(Args... args)
+	template<class T>
+	struct scoped_dec
+	{
+		T& obj;
+
+		scoped_dec(T& obj_)
+			: obj(obj_)
+		{}
+
+		~scoped_dec()
+		{
+			--obj;
+		}
+	};
+
+	template<class Signal>
+	struct scoped_cleanup
+	{
+		Signal& sig;
+		scoped_cleanup(Signal& sig_)
+			: sig(sig_)
+		{}
+
+		~scoped_cleanup()
+		{
+			auto it = sig.slots.begin();
+			auto end = sig.slots.end();
+
+			while( it != end ) {
+				if ( it->second->delete_requested )
+					it = sig.slots.erase( it );
+				++it;
+			}
+		}
+	};
+	friend struct scoped_cleanup< signal<Ret(Args...)> >;
+
+	results_type emit(Args... args)
 	{
 		debug();
 
-		++dispatch_depth;
+		invoker<Ret(Args...)> inv;
+
+		scoped_dec<std::size_t> dec( ++dispatch_depth );
+		scoped_cleanup<decltype(*this)> cleanup_deleted_slots( *this );
 
 		auto it = slots.begin();
 		auto end = slots.end();
 
-		for ( ; it != slots.end(); ++it ) {
-			if ( it->second->blocked )
-				continue;
-			BARK;
-			it->second->callback( std::forward<Args>(args)... );
-
-			if ( it->second->delete_requested )
-				it = slots.erase( it );
-		}
-
-		--dispatch_depth;
-	}
-
-	void emit(Args... args)
-	{
-		dispatch( std::forward<Args>(args)... );
+		return inv.dispatch( it, end, std::forward<Args>(args)... );
 	}
 
 	void debug()

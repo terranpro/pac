@@ -120,7 +120,8 @@ struct RootPresentation : public sigc::trackable
 
 	void load( int& argc, char **& argv )
 	{
-		app = Gtk::Application::create(argc, argv);
+		app = Gtk::Application::create(argc, argv, appid,
+		                               Gio::APPLICATION_HANDLES_OPEN );
 		load_internal();
 	}
 

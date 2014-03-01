@@ -28,6 +28,8 @@ struct RootWindow : public Gtk::Window
 
 	void OnButtonClicked()
 	{
+		std::cout << __PRETTY_FUNCTION__ << "\n";
+
 		button_clicked.emit();
 	}
 
@@ -142,6 +144,8 @@ struct RootController
 	RootPresentation *pre;
 	RootAbstraction *abs;
 
+	std::vector<pac::connection> connections;
+
 	RootController( RootPresentation *p,
 	                RootAbstraction *a )
 		: pre(p), abs(a)
@@ -149,8 +153,9 @@ struct RootController
 
 	void signal_init()
 	{
-		pre->SignalButtonClicked().connect(
-			this, &RootController::OnButtonClicked );
+		connections.push_back(
+			pre->SignalButtonClicked().connect(
+				this, &RootController::OnButtonClicked ) );
 	}
 
 	void OnButtonClicked()

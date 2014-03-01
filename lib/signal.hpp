@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Tue Feb 25 15:18:11 KST 2014
+ * Last modified: Sat Mar 01 22:15:32 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -86,7 +86,6 @@ struct connection
 	{
 		void *sig;
 		std::size_t id;
-		bool blocked;
 		void *slot_;
 
 		virtual ~signal_concept()
@@ -109,7 +108,6 @@ struct connection
 		{
 			sig = s;
 			id = i;
-			blocked = false;
 			slot_ = sl;
 		}
 		~signal_reference()
@@ -127,7 +125,6 @@ struct connection
 		{
 			sig = nullptr;
 			id = -1;
-			blocked = false;
 			slot_ = nullptr;
 		}
 

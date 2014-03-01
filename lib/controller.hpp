@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 23:12:32 KST 2014
- * Last modified: Mon Feb 10 02:13:00 KST 2014
+ * Last modified: Mon Feb 24 01:16:14 KST 2014
  */
 
 #ifndef CONTROLLER_HPP
@@ -45,13 +45,6 @@ struct controller : base_controller
 	void add_child(){}
 
 	void OnLaunch(){}
-
-};
-
-struct unit
-{
-	controller *con;
-	void add_child( unit *u ){}
 
 };
 

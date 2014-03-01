@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Sun Feb 23 00:39:51 KST 2014
+ * Last modified: Tue Feb 25 15:18:11 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -241,7 +241,6 @@ class signal<Ret(Args...)>
 {
 public:
 	using results_type = typename invoker<Ret(Args...)>::results_type;
-
 	using callback_type = callback<Ret, Args...>;
 	using slot_type = slot<callback_type>;
 

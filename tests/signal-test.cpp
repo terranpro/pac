@@ -1,4 +1,5 @@
 #include "signal.hpp"
+#include "signal-forward.hpp"
 
 #include <iostream>
 #include <algorithm>
@@ -102,6 +103,25 @@ int main(int, char *[])
 	auto r2 = s.Sub( 3 );
 	for ( auto r : r2 )
 		std::cout << r << "\n";
+
+	std::function<void()> transformer =
+		[](){ };
+
+	// signal forwarding tests
+	// signal_forward< pac::signal<int(int)>, void(bool) > fwd( s.sigadd,
+	//                                                          transformer
+	//                                                        );
+
+	std::function<bool(int)> infunc = []( int in ) { return in != 0; };
+	std::function<int(bool)> outfunc = []( bool in ) { return in ? 6969 : -1069; };
+
+	signal_catcher< decltype( s.sigadd ),
+	                decltype(infunc),
+	                decltype(outfunc) >
+		catcher( s.sigadd, infunc, outfunc );
+
+	for ( auto r : s.Add( 5 ) )
+		std::cout << "r = " << r << "\n";
 
 	return 0;
 }

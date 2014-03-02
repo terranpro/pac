@@ -67,6 +67,12 @@ int another_dec( int in )
 	return in -7;
 }
 
+bool sigfwd_cb( double x, double y )
+{
+	std::cout << "Point @ " << x << "," << y << "\n";
+	return x > y;
+}
+
 int main(int, char *[])
 {
 	Server s;
@@ -104,17 +110,18 @@ int main(int, char *[])
 	for ( auto r : r2 )
 		std::cout << r << "\n";
 
-	std::function<void()> transformer =
-		[](){ };
+	// std::function<void()> transformer =
+	// 	[](){ };
 
 	// signal forwarding tests
 	// signal_forward< pac::signal<int(int)>, void(bool) > fwd( s.sigadd,
 	//                                                          transformer
 	//                                                        );
 
-	std::function<bool(int)> infunc = []( int in ) { return in != 0; };
-	std::function<int(bool)> outfunc = []( bool in ) { return in ? 6969 : -1069; };
-
+	// just for fun, made the transform functions 'hard'
+	auto infunc = std::bind( []( int in ) { return in != 0; }, std::placeholders::_1 );
+	//	std::function<int(bool)> outfunc = []( bool in ) { return in ? 6969 : -1069; };
+	auto outfunc = []( bool in ) { return in ? 6969 : -1069; };
 	signal_catcher< decltype( s.sigadd ),
 	                decltype(infunc),
 	                decltype(outfunc) >
@@ -122,6 +129,52 @@ int main(int, char *[])
 
 	for ( auto r : s.Add( 5 ) )
 		std::cout << "r = " << r << "\n";
+
+	// forwarded slot test
+
+	std::function< std::tuple<double,double>(int) > inf =
+		[]( int in ) { BARK; return std::make_tuple( in * 3.14, in * 2 * 3.14 ); };
+
+	pac::callback<bool,double,double> mycb =
+		[]( double in1, double in2 ) { return in1 > in2; };
+
+	std::function< int( bool ) > outf =
+		[]( bool out ) { BARK; int r = out ? 1001 : 2002; return r; };
+
+
+	pac::forwarded_slot< decltype( mycb ), decltype( inf ), decltype( outf ) >
+		fslot( mycb, inf, outf );
+
+	std::cout << pac::apply( mycb, std::make_tuple( 3.141, 3.14 ) ) << "\n";
+
+	auto *castslot =
+		dynamic_cast<pac::slot< callback<int, int> > *>( &fslot );
+
+	assert( castslot );
+
+	std::cout << castslot->callback( 99 ) << "\n";
+
+	pac::signal< int( int ) > origsig;
+
+	auto savemecon = origsig.connect_slot( *castslot );
+
+	for ( auto r : origsig.emit( 5 ) )
+		std::cout << "s = " << r << "\n";
+
+	pac::signal_forward< decltype( origsig ),
+	                     bool( double,double ),
+	                     decltype( inf ),
+	                     decltype( outf ) > sigf( origsig,
+	                                              inf,
+	                                              outf );
+
+	// This works
+	auto sigfcon = sigf.connect_slot( *castslot );
+
+	// But this is broken currently
+	//auto sigfcon = sigf.connect( sigfwd_cb );
+
+	origsig.emit( 5 );
 
 	return 0;
 }

@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Sat Mar 01 19:50:24 KST 2014
+ * Last modified: Mon Mar 03 02:24:54 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -29,14 +29,79 @@
 
 #include "callback.hpp"
 #include "signal.hpp"
+#include "apply.hpp"
 
 namespace pac {
+
+template<class Ret, class... Args>
+struct null_func
+{
+	Ret operator()(Args&&... args)
+	{
+		return Ret();
+	}
+};
+
+template<class Callback, class InFunc, class OutFunc>
+struct forwarded_slot;
+
+template<class Callback,
+         class InRet, class... InArgs,
+         class OutRet, class... OutArgs>
+struct forwarded_slot<
+         Callback,
+         std::function<InRet( InArgs... )>,
+         std::function<OutRet( OutArgs... )>
+        >
+	: public slot< callback<OutRet, InArgs...> >
+{
+	Callback usercb;
+	std::function<InRet( InArgs... )> infunc;
+	std::function<OutRet( OutArgs... )> outfunc;
+
+	template<class InFunc, class OutFunc>
+	forwarded_slot( Callback cb, InFunc inf, OutFunc outf )
+		: slot< callback< OutRet, InArgs... > >( callback< OutRet, InArgs... >{} ),
+		  usercb( cb ), infunc( inf ), outfunc( outf )
+	{
+		this->callback = reset_callback();
+	}
+
+	auto reset_callback()
+	{
+		return
+			[&](InArgs... args)
+		{
+			auto intup = infunc( args... );
+			return OutRet();
+			// return outfunc( apply( usercb, std::move( intup ) ) );
+			//				return this->call( args... );
+		};
+	}
+
+	forwarded_slot( forwarded_slot const& other)
+	{
+		usercb = other.usercb;
+		infunc = other.infunc;
+		outfunc = other.outfunc;
+
+		this->callback = reset_callback();
+	}
+
+	forwarded_slot( forwarded_slot&& ) = delete;
+
+	OutRet call( InArgs... inargs )
+	{
+		auto intup = infunc( inargs... );
+		return outfunc( apply( usercb, std::move( intup ) ) );
+	}
+};
 
 template<class Signal, class InFunc, class OutFunc>
 class signal_catcher;
 
 template<class Ret, class... Args, class InFunc, class OutFunc>
-class signal_catcher< signal< Ret(Args...)>, InFunc, OutFunc >
+class signal_catcher< signal< Ret(Args...)>, InFunc, OutFunc>
 {
 	connection con;
 	InFunc infunc;
@@ -50,7 +115,7 @@ class signal_catcher< signal< Ret(Args...)>, InFunc, OutFunc >
 	}
 
 public:
-	signal_catcher(signal<Ret(Args...)>& s, InFunc inf, OutFunc outf)
+	signal_catcher(signal<Ret(Args...)>& s, InFunc inf, OutFunc outf )
 		: infunc(inf), outfunc(outf)
 	{
 		con = s.connect( this, &signal_catcher::operator() );
@@ -65,54 +130,65 @@ std::tuple<OutArgs...> transform( std::tuple<InArgs...> in_args,
 	return tfunc( in_args );
 }
 
-template<class Signal, class InFunc, class OutFunc>
+template<class OrigSignal, class NewSignature, class InFunc, class OutFunc>
 class signal_forward;
 
-template<class Signal, class InRet, class... InArgs, class OutRet, class... OutArgs>
-class signal_forward<Signal, InRet(InArgs...), OutRet(OutArgs...) >
+template<class OrigRet, class... OrigArgs, class Ret, class... Args, class InFunc, class OutFunc>
+class signal_forward<signal<OrigRet(OrigArgs...)>, Ret(Args...), InFunc, OutFunc>
 {
-	using UserSignalType = signal< InRet(InArgs...) >;
-	using UserSignalResultsType = typename UserSignalType::results_type;
+	using SignalType = signal<OrigRet(OrigArgs...)>;
 
-	UserSignalType sig_forwarded;
-	signal_catcher< Signal, std::function<InRet(InArgs...)>, std::function<OutRet(OutArgs...)> > catcher;
+	SignalType& sig;
+	InFunc infunc;
+	OutFunc outfunc;
 
-	signal_forward( Signal& sig )
+public:
+	signal_forward( SignalType& s,
+	                InFunc inf,
+	                OutFunc outf )
+		: sig( s ), infunc(inf), outfunc(outf)
 	{}
 
-	template<class InFunc, class OutFunc>
-	signal_forward( Signal& sig, InFunc inf, OutFunc outf )
-		: catcher( sig, inf, outf )
+	template<class Slot>
+	connection connect_slot( Slot&& slot )
 	{
+		return std::move( sig.connect_slot( std::forward<Slot>(slot) ) );
 	}
 
 	template<class Func>
-	connection connect( Func func )
+	connection connect( Func&& func )
 	{
-		return sig_forwarded.connect( func );
+		auto cb = make_callback( std::forward<Func>(func) );
+		using cb_type = decltype( cb );
+
+		forwarded_slot< cb_type, InFunc, OutFunc > fwdslot(
+			std::move( cb ), infunc, outfunc );
+
+		return std::move( sig.connect_slot( fwdslot ) );
 	}
 
 	template<class T, class PMemFunc>
 	connection connect( T *obj, PMemFunc mfunc )
 	{
-		return sig_forwarded.connect( obj, mfunc );
+		auto cb = make_callback( obj, mfunc );
+		using cb_type = decltype( cb );
+
+		forwarded_slot< cb_type, InFunc, OutFunc > fwdslot(
+			std::move( cb ), infunc, outfunc );
+
+		return std::move( sig.connect_slot( fwdslot) );
 	}
 
-	void disconnect( connection& con )
-	{
-		sig_forwarded.disconnect( con );
-	}
+// 	void disconnect( connection& con )
+// 	{
+// 		sig_forwarded.disconnect( con );
+// 	}
 
-	void disconnect( std::size_t con_id )
-	{
-		sig_forwarded.disconnect( con_id );
-	}
+// 	void disconnect( std::size_t con_id )
+// 	{
+// 		sig_forwarded.disconnect( con_id );
+// 	}
 
-	template<class... Args>
-	UserSignalResultsType emit(Args... args)
-	{
-		return sig_forwarded.emit( args... );
-	}
 };
 
 

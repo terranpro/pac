@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Sat Mar 01 22:15:32 KST 2014
+ * Last modified: Mon Mar 03 02:18:15 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -49,22 +49,6 @@
 
 namespace pac {
 
-template<class T, class Ret, class... Args>
-auto make_callback( T *obj, Ret (T::*mfunc)(Args...) )
-	-> callback<Ret, Args...>
-{
-	callback<Ret, Args...> cb{obj, mfunc};
-	return cb;
-}
-
-template<class Ret, class... Args>
-auto make_callback( Ret (*func)(Args...) )
-	-> callback<Ret, Args...>
-{
-	callback<Ret, Args...> cb{func};
-	return cb;
-}
-
 template< class Signature >
 class signal;
 
@@ -78,6 +62,10 @@ struct slot
 	slot(Callback cb)
 		: callback(cb)
 	{}
+	virtual ~slot() = default;
+
+	slot( slot const& ) = default;
+	slot( slot&& ) = default;
 };
 
 struct connection
@@ -112,6 +100,7 @@ struct connection
 		}
 		~signal_reference()
 		{
+			BARK;
 			disconnect();
 		}
 		void disconnect();
@@ -244,7 +233,6 @@ public:
 	friend class invoker<Ret(Args...)>;
 
 private:
-	//	std::unordered_map< std::size_t, callback_type > callbacks;
 	std::unordered_map< std::size_t, std::shared_ptr<slot_type> > slots;
 	std::size_t next_id = 0;
 	std::size_t dispatch_depth = 0;
@@ -261,28 +249,31 @@ public:
 	signal(signal&&) = default;
 	signal& operator=(signal&&) = default;
 
+	connection connect_slot( slot_type const& slot )
+	{
+		BARK;
+
+		slot_type *slotcopy = new slot_type( slot );
+		auto slotptr = std::shared_ptr<slot_type>( slotcopy );
+		connection con( this, next_id, slotptr.get() );
+
+		slots.insert( std::make_pair(next_id, slotptr) );
+		++next_id;
+		return std::move( con );
+	}
+
 	template<class Func>
 	connection connect(Func func)
 	{
 		callback<Ret, Args...> cb{ func };
-		std::shared_ptr<slot_type> slot{ new slot_type(cb) };
-		connection con( this, next_id, slot.get() );
-
-		slots.insert( std::make_pair(next_id, slot) );
-		++next_id;
-		return con;
+		return connect_slot( slot_type( cb ) );
 	}
 
 	template<class T, class PMemFunc>
 	connection connect( T *obj, PMemFunc mfunc )
 	{
 		auto cb = make_callback( obj, mfunc );
-		std::shared_ptr<slot_type> slot{ new slot_type(cb) };
-		connection con( this, next_id, slot.get() );
-
-		slots.insert( std::make_pair(next_id, slot) );
-		++next_id;
-		return con;
+		return connect_slot( slot_type( cb ) );
 	}
 
 	void disconnect( connection& con )
@@ -333,10 +324,9 @@ public:
 			auto it = sig.slots.begin();
 			auto end = sig.slots.end();
 
-			while( it != end ) {
+			for( ; it != end; ++it ) {
 				if ( it->second->delete_requested )
 					it = sig.slots.erase( it );
-				++it;
 			}
 		}
 	};

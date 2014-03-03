@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Mon Mar 03 02:24:54 KST 2014
+ * Last modified: Mon Mar 03 14:14:47 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -72,15 +72,15 @@ struct forwarded_slot<
 		return
 			[&](InArgs... args)
 		{
-			auto intup = infunc( args... );
-			return OutRet();
-			// return outfunc( apply( usercb, std::move( intup ) ) );
-			//				return this->call( args... );
+			return outfunc( apply( usercb, std::move( infunc( args... ) ) ) );
 		};
 	}
 
 	forwarded_slot( forwarded_slot const& other)
+		: slot< callback< OutRet, InArgs... > >( other )
 	{
+		std::cout << "hey sup\n";
+
 		usercb = other.usercb;
 		infunc = other.infunc;
 		outfunc = other.outfunc;
@@ -89,12 +89,6 @@ struct forwarded_slot<
 	}
 
 	forwarded_slot( forwarded_slot&& ) = delete;
-
-	OutRet call( InArgs... inargs )
-	{
-		auto intup = infunc( inargs... );
-		return outfunc( apply( usercb, std::move( intup ) ) );
-	}
 };
 
 template<class Signal, class InFunc, class OutFunc>

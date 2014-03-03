@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Mon Mar 03 02:18:15 KST 2014
+ * Last modified: Mon Mar 03 14:15:04 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -249,11 +249,12 @@ public:
 	signal(signal&&) = default;
 	signal& operator=(signal&&) = default;
 
-	connection connect_slot( slot_type const& slot )
+	template<class SlotType>
+	connection connect_slot( SlotType const& slot )
 	{
 		BARK;
 
-		slot_type *slotcopy = new slot_type( slot );
+		slot_type *slotcopy = new SlotType( slot );
 		auto slotptr = std::shared_ptr<slot_type>( slotcopy );
 		connection con( this, next_id, slotptr.get() );
 

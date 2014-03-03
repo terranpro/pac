@@ -169,10 +169,27 @@ int main(int, char *[])
 	                                              outf );
 
 	// This works
-	auto sigfcon = sigf.connect_slot( *castslot );
+	auto sigfcon2 = sigf.connect_slot( *castslot );
 
-	// But this is broken currently
-	//auto sigfcon = sigf.connect( sigfwd_cb );
+	//But this is broken currently
+	auto sigfcon = sigf.connect( sigfwd_cb );
+
+	origsig.emit( 5 );
+
+	{
+		pac::connection_block block
+		{ sigfcon };
+
+		origsig.emit( 5 );
+	}
+
+	sigfcon.disconnect();
+	sigfcon.disconnect();
+	sigfcon.disconnect();
+	sigfcon.disconnect();
+	sigfcon.disconnect();
+	sigfcon.disconnect();
+	sigfcon.disconnect();
 
 	origsig.emit( 5 );
 

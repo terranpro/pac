@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:15:18 KST 2014
- * Last modified: Tue Mar 04 13:38:33 KST 2014
+ * Last modified: Tue Mar 04 16:14:15 KST 2014
  */
 
 #ifndef CALLBACK_HPP
@@ -106,10 +106,10 @@ public:
 	callback(callback const&) = default;
 	callback& operator=(callback const&) = default;
 
-  Ret operator()(Args&&... args)
+  Ret operator()(Args... args)
 	{
     if ( con )
-	    return (*con)( std::forward<Args>(args)... );
+	    return (*con)( std::move(args)... );
     return Ret();
   }
 };

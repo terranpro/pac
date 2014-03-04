@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <memory>
 
 #include <cassert>
 
@@ -82,7 +83,7 @@ int sigfwd2_cb( int x )
 int main(int, char *[])
 {
 	Server s;
-	Client *c = new Client{s};
+	auto c = std::make_shared<Client>( s );
 
 	auto r1 = s.Add( 5 );
 	// should be 5 * 2 == { 10 }

@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Tue Mar 04 13:37:51 KST 2014
+ * Last modified: Tue Mar 04 15:40:03 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -285,14 +285,14 @@ public:
 	void disconnect( std::size_t con_id )
 	{
 		auto it = slots.find( con_id );
-		if ( it != std::end( slots ) ) {
-			std::cout << "ERASED!\n";
+		if ( it == std::end( slots ) )
+			return;
 
-			if ( dispatch_depth > 0 )
-				it->second->delete_requested;
-			else
-				slots.erase( it );
-		}
+		if ( dispatch_depth > 0 )
+			it->second->delete_requested;
+		else
+			slots.erase( it );
+
 		BARK;
 		BARK_THIS;
 	}
@@ -335,8 +335,6 @@ public:
 
 	results_type emit(Args... args)
 	{
-		debug();
-
 		invoker<Ret(Args...)> inv;
 
 		scoped_dec<std::size_t> dec( ++dispatch_depth );
@@ -346,11 +344,6 @@ public:
 		auto end = slots.end();
 
 		return inv.dispatch( it, end, std::forward<Args>(args)... );
-	}
-
-	void debug()
-	{
-		std::cout << "slots size = " << slots.size() << "\n";
 	}
 };
 

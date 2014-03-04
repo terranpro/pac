@@ -76,8 +76,8 @@ bool sigfwd_cb( double x, double y )
 
 int sigfwd2_cb( int x )
 {
-	std::cout << "Join me - join the Dark Side!\n";
-	return x + 111;
+	auto ret = x + 111;
+	return std::move(ret);
 }
 
 int main(int, char *[])
@@ -117,14 +117,6 @@ int main(int, char *[])
 	for ( auto r : r2 )
 		std::cout << r << "\n";
 
-	// std::function<void()> transformer =
-	// 	[](){ };
-
-	// signal forwarding tests
-	// signal_forward< pac::signal<int(int)>, void(bool) > fwd( s.sigadd,
-	//                                                          transformer
-	//                                                        );
-
 	// just for fun, made the transform functions 'hard'
 	auto infunc = std::bind( []( int in ) { return in != 0; }, std::placeholders::_1 );
 	//	std::function<int(bool)> outfunc = []( bool in ) { return in ? 6969 : -1069; };
@@ -138,7 +130,6 @@ int main(int, char *[])
 		std::cout << "r = " << r << "\n";
 
 	// forwarded slot test
-
 	std::function< std::tuple<double,double>(int) > inf =
 		[]( int in ) { BARK; return std::make_tuple( in * 3.14, in * 2 * 3.14 ); };
 
@@ -177,7 +168,6 @@ int main(int, char *[])
 	// This works
 	auto sigfcon2 = sigf.connect_slot( *castslot );
 
-	//But this is broken currently
 	auto sigfcon = sigf.connect( sigfwd_cb );
 
 	origsig.emit( 5 );
@@ -205,7 +195,8 @@ int main(int, char *[])
 
 	auto sigf2con = sigf2.connect( sigfwd2_cb );
 
-	origsig.emit( 5 );
+	for ( auto r : origsig.emit( 5 ) )
+		std::cout << r << "\n";
 
 	return 0;
 }

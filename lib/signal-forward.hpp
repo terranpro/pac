@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Tue Mar 04 14:02:24 KST 2014
+ * Last modified: Tue Mar 04 15:38:23 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -74,15 +74,18 @@ struct forwarded_slot<
 		return
 			[&](InArgs... args)
 		{
-			return outfunc( apply( usercb, std::move( infunc( std::move( args... ) ) ) ) );
+			auto newargs = infunc( std::move( args... ) );
+			return std::move( outfunc(
+				                  std::move(
+					                  apply(
+						                  usercb,
+						                  std::move( newargs ) ) ) ) );
 		};
 	}
 
 	forwarded_slot( forwarded_slot const& other )
 		: slot< callback< OutRet( InArgs... ) > >( other )
 	{
-		std::cout << "hey sup\n";
-
 		usercb = other.usercb;
 		infunc = other.infunc;
 		outfunc = other.outfunc;
@@ -106,7 +109,6 @@ class signal_catcher< signal< Ret(Args...)>, InFunc, OutFunc>
 	auto operator()(Args&&... args)
 		-> decltype( outfunc( infunc( std::forward<Args>(args)... ) ) )
 	{
-		std::cout << __PRETTY_FUNCTION__ << "\n";
 		return outfunc( infunc( std::forward<Args>(args)... ) );
 	}
 
@@ -145,7 +147,7 @@ class signal_forward<
 	static auto
 	default_infunc( OrigArgs... args )
 	{
-		return std::forward_as_tuple( args... );
+		return std::move( std::make_tuple( std::move(args...) ) );
 	}
 
 	static OrigRet

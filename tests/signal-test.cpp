@@ -73,6 +73,12 @@ bool sigfwd_cb( double x, double y )
 	return x > y;
 }
 
+int sigfwd2_cb( int x )
+{
+	std::cout << "Join me - join the Dark Side!\n";
+	return x + 111;
+}
+
 int main(int, char *[])
 {
 	Server s;
@@ -135,10 +141,12 @@ int main(int, char *[])
 	std::function< std::tuple<double,double>(int) > inf =
 		[]( int in ) { BARK; return std::make_tuple( in * 3.14, in * 2 * 3.14 ); };
 
-	pac::callback<bool,double,double> mycb =
+	pac::callback<bool(double,double)> mycb =
 		[]( double in1, double in2 ) { return in1 > in2; };
 
-	std::function< int( bool ) > outf =
+	// std::function< int( bool ) > outf =
+	// 	[]( bool out ) { BARK; int r = out ? 1001 : 2002; return r; };
+	pac::callback< int( bool ) > outf =
 		[]( bool out ) { BARK; int r = out ? 1001 : 2002; return r; };
 
 
@@ -148,7 +156,7 @@ int main(int, char *[])
 	std::cout << pac::apply( mycb, std::make_tuple( 3.141, 3.14 ) ) << "\n";
 
 	auto *castslot =
-		dynamic_cast<pac::slot< callback<int, int> > *>( &fslot );
+		dynamic_cast<pac::slot< callback<int( int )> > *>( &fslot );
 
 	assert( castslot );
 
@@ -162,11 +170,8 @@ int main(int, char *[])
 		std::cout << "s = " << r << "\n";
 
 	pac::signal_forward< decltype( origsig ),
-	                     bool( double,double ),
-	                     decltype( inf ),
-	                     decltype( outf ) > sigf( origsig,
-	                                              inf,
-	                                              outf );
+	                     bool( double,double ) >
+		sigf( origsig, inf, outf );
 
 	// This works
 	auto sigfcon2 = sigf.connect_slot( *castslot );
@@ -190,6 +195,14 @@ int main(int, char *[])
 	sigfcon.disconnect();
 	sigfcon.disconnect();
 	sigfcon.disconnect();
+
+	origsig.emit( 5 );
+
+	pac::signal_forward< decltype(origsig ),
+	                     int( int ) > sigf2( origsig );
+
+
+	auto sigf2con = sigf2.connect( sigfwd2_cb );
 
 	origsig.emit( 5 );
 

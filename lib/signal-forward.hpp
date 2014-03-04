@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Mon Mar 03 14:14:47 KST 2014
+ * Last modified: Tue Mar 04 14:02:24 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -46,22 +46,24 @@ template<class Callback, class InFunc, class OutFunc>
 struct forwarded_slot;
 
 template<class Callback,
+         template<class...> class FunctionIn,
+         template<class...> class FunctionOut,
          class InRet, class... InArgs,
          class OutRet, class... OutArgs>
 struct forwarded_slot<
          Callback,
-         std::function<InRet( InArgs... )>,
-         std::function<OutRet( OutArgs... )>
+         FunctionIn<InRet( InArgs... )>,
+         FunctionOut<OutRet( OutArgs... )>
         >
-	: public slot< callback<OutRet, InArgs...> >
+	: public slot< callback<OutRet( InArgs... )> >
 {
 	Callback usercb;
-	std::function<InRet( InArgs... )> infunc;
-	std::function<OutRet( OutArgs... )> outfunc;
+	FunctionIn<InRet( InArgs... )> infunc;
+	FunctionOut<OutRet( OutArgs... )> outfunc;
 
 	template<class InFunc, class OutFunc>
 	forwarded_slot( Callback cb, InFunc inf, OutFunc outf )
-		: slot< callback< OutRet, InArgs... > >( callback< OutRet, InArgs... >{} ),
+		: slot< callback< OutRet( InArgs... ) > >( callback< OutRet( InArgs... ) >{} ),
 		  usercb( cb ), infunc( inf ), outfunc( outf )
 	{
 		this->callback = reset_callback();
@@ -72,12 +74,12 @@ struct forwarded_slot<
 		return
 			[&](InArgs... args)
 		{
-			return outfunc( apply( usercb, std::move( infunc( args... ) ) ) );
+			return outfunc( apply( usercb, std::move( infunc( std::move( args... ) ) ) ) );
 		};
 	}
 
-	forwarded_slot( forwarded_slot const& other)
-		: slot< callback< OutRet, InArgs... > >( other )
+	forwarded_slot( forwarded_slot const& other )
+		: slot< callback< OutRet( InArgs... ) > >( other )
 	{
 		std::cout << "hey sup\n";
 
@@ -109,7 +111,7 @@ class signal_catcher< signal< Ret(Args...)>, InFunc, OutFunc>
 	}
 
 public:
-	signal_catcher(signal<Ret(Args...)>& s, InFunc inf, OutFunc outf )
+	signal_catcher( signal<Ret(Args...)>& s, InFunc inf, OutFunc outf )
 		: infunc(inf), outfunc(outf)
 	{
 		con = s.connect( this, &signal_catcher::operator() );
@@ -124,22 +126,40 @@ std::tuple<OutArgs...> transform( std::tuple<InArgs...> in_args,
 	return tfunc( in_args );
 }
 
-template<class OrigSignal, class NewSignature, class InFunc, class OutFunc>
+template<class OrigSignal, class NewSignalSignature>
 class signal_forward;
 
-template<class OrigRet, class... OrigArgs, class Ret, class... Args, class InFunc, class OutFunc>
-class signal_forward<signal<OrigRet(OrigArgs...)>, Ret(Args...), InFunc, OutFunc>
+template<class OrigRet, class... OrigArgs,
+         class Ret, class... Args>
+class signal_forward<
+         signal<OrigRet(OrigArgs...)>,
+         Ret(Args...)
+        >
 {
 	using SignalType = signal<OrigRet(OrigArgs...)>;
 
 	SignalType& sig;
-	InFunc infunc;
-	OutFunc outfunc;
+	callback< std::tuple<Args...>( OrigArgs... ) > infunc;
+	callback< OrigRet( Ret ) > outfunc;
+
+	static auto
+	default_infunc( OrigArgs... args )
+	{
+		return std::forward_as_tuple( args... );
+	}
+
+	static OrigRet
+	default_outfunc( Ret ret )
+	{
+		return ret;
+	}
 
 public:
+	template<class InFunc = decltype( &signal_forward::default_infunc ),
+	         class OutFunc = decltype( &signal_forward::default_outfunc )>
 	signal_forward( SignalType& s,
-	                InFunc inf,
-	                OutFunc outf )
+	                InFunc inf = &signal_forward::default_infunc,
+	                OutFunc outf = &signal_forward::default_outfunc )
 		: sig( s ), infunc(inf), outfunc(outf)
 	{}
 
@@ -155,8 +175,10 @@ public:
 		auto cb = make_callback( std::forward<Func>(func) );
 		using cb_type = decltype( cb );
 
-		forwarded_slot< cb_type, InFunc, OutFunc > fwdslot(
-			std::move( cb ), infunc, outfunc );
+		forwarded_slot< cb_type,
+		                decltype( infunc ),
+		                decltype( outfunc ) >
+			fwdslot( std::move( cb ), infunc, outfunc );
 
 		return std::move( sig.connect_slot( fwdslot ) );
 	}
@@ -167,8 +189,10 @@ public:
 		auto cb = make_callback( obj, mfunc );
 		using cb_type = decltype( cb );
 
-		forwarded_slot< cb_type, InFunc, OutFunc > fwdslot(
-			std::move( cb ), infunc, outfunc );
+		forwarded_slot< cb_type,
+		                decltype( infunc ),
+		                decltype( outfunc ) >
+			fwdslot( std::move( cb ), infunc, outfunc );
 
 		return std::move( sig.connect_slot( fwdslot) );
 	}

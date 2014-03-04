@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Mon Mar 03 14:15:04 KST 2014
+ * Last modified: Tue Mar 04 13:37:51 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -201,7 +201,7 @@ struct invoker<void(Args...)>
 	using return_type = void;
 	using results_type = void;
 
-	using callback_type = callback<void, Args...>;
+	using callback_type = callback<void( Args... )>;
 	using slot_type = slot<callback_type>;
 
 	template<class SlotIt>
@@ -227,7 +227,7 @@ class signal<Ret(Args...)>
 {
 public:
 	using results_type = typename invoker<Ret(Args...)>::results_type;
-	using callback_type = callback<Ret, Args...>;
+	using callback_type = callback<Ret( Args... )>;
 	using slot_type = slot<callback_type>;
 
 	friend class invoker<Ret(Args...)>;
@@ -266,7 +266,7 @@ public:
 	template<class Func>
 	connection connect(Func func)
 	{
-		callback<Ret, Args...> cb{ func };
+		callback<Ret( Args... )> cb{ func };
 		return connect_slot( slot_type( cb ) );
 	}
 

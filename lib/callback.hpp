@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:15:18 KST 2014
- * Last modified: Mon Mar 03 00:37:37 KST 2014
+ * Last modified: Tue Mar 04 13:38:33 KST 2014
  */
 
 #ifndef CALLBACK_HPP
@@ -33,8 +33,11 @@
 
 namespace pac {
 
+template<class Signature>
+class callback;
+
 template<class Ret, class... Args>
-class callback
+class callback< Ret(Args...) >
 {
   struct concept
   {
@@ -113,17 +116,17 @@ public:
 
 template<class T, class Ret, class... Args>
 auto make_callback( T *obj, Ret (T::*mfunc)(Args...) )
-	-> callback<Ret, Args...>
+	-> callback<Ret( Args... )>
 {
-	callback<Ret, Args...> cb{obj, mfunc};
+	callback<Ret( Args... )> cb{obj, mfunc};
 	return cb;
 }
 
 template<class Ret, class... Args>
 auto make_callback( Ret (*func)(Args...) )
-	-> callback<Ret, Args...>
+	-> callback<Ret( Args... )>
 {
-	callback<Ret, Args...> cb{func};
+	callback<Ret( Args... )> cb{func};
 	return cb;
 }
 

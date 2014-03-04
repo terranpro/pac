@@ -68,10 +68,10 @@ int another_dec( int in )
 	return in -7;
 }
 
-bool sigfwd_cb( double x, double y )
+int sigfwd_cb( int x, int y )
 {
 	std::cout << "Point @ " << x << "," << y << "\n";
-	return x > y;
+	return x + y;
 }
 
 int sigfwd2_cb( int x )
@@ -130,53 +130,78 @@ int main(int, char *[])
 		std::cout << "r = " << r << "\n";
 
 	// forwarded slot test
-	std::function< std::tuple<double,double>(int) > inf =
-		[]( int in ) { BARK; return std::make_tuple( in * 3.14, in * 2 * 3.14 ); };
+	auto testn1 = 3;
 
-	pac::callback<bool(double,double)> mycb =
-		[]( double in1, double in2 ) { return in1 > in2; };
+	std::function< std::tuple<int,int>(int) > inf =
+		[]( int in ) { BARK; return std::make_tuple( in + 3, in + 5 ); };
+
+	pac::callback<int(int,int)> mycb =
+		[]( int in1, int in2 ) { return in1 * in2 + 137; };
 
 	// std::function< int( bool ) > outf =
 	// 	[]( bool out ) { BARK; int r = out ? 1001 : 2002; return r; };
-	pac::callback< int( bool ) > outf =
-		[]( bool out ) { BARK; int r = out ? 1001 : 2002; return r; };
-
+	pac::callback< int( int ) > outf =
+		[]( int out ) { BARK; return out - 1; };
 
 	pac::forwarded_slot< decltype( mycb ), decltype( inf ), decltype( outf ) >
 		fslot( mycb, inf, outf );
-
-	std::cout << pac::apply( mycb, std::make_tuple( 3.141, 3.14 ) ) << "\n";
 
 	auto *castslot =
 		dynamic_cast<pac::slot< callback<int( int )> > *>( &fslot );
 
 	assert( castslot );
 
-	std::cout << castslot->callback( 99 ) << "\n";
+	auto fwdslotres = castslot->callback( testn1 );
+	auto calc_expected =
+		[]( int in ) { return ( in + 3 ) * ( in + 5 ) + 137 - 1; };
 
+	auto expected_result = calc_expected( testn1 );
+
+	assert( fwdslotres == expected_result );
+
+	std::cout <<  fwdslotres << " == " << expected_result << "\n";
+
+	// forwarded signal test
+	auto testn2 = 5;
 	pac::signal< int( int ) > origsig;
 
 	auto savemecon = origsig.connect_slot( *castslot );
 
-	for ( auto r : origsig.emit( 5 ) )
+	for ( auto r : origsig.emit( testn2 ) )
 		std::cout << "s = " << r << "\n";
 
 	pac::signal_forward< decltype( origsig ),
-	                     bool( double,double ) >
+	                     int( int,int ) >
 		sigf( origsig, inf, outf );
 
-	// This works
 	auto sigfcon2 = sigf.connect_slot( *castslot );
 
 	auto sigfcon = sigf.connect( sigfwd_cb );
 
-	origsig.emit( 5 );
+	auto rr =
+		[](std::vector<int> con)
+		{
+			return std::accumulate( con.begin(), con.end(), 0 );
+		}(origsig.emit( testn2 ));
+
+	auto expected_rr = 2 * calc_expected( testn2 ) + sigfwd_cb( testn2 + 3, testn2 + 5 ) - 1;
+
+	std::cout << rr << " ==? " << expected_rr << "\n";
+
+	assert( rr == expected_rr );
 
 	{
 		pac::connection_block block
 		{ sigfcon };
 
-		origsig.emit( 5 );
+		auto rr2 =
+			[](std::vector<int> con)
+			{
+				return std::accumulate( con.begin(), con.end(), 0 );
+			}(origsig.emit( testn2 ));
+		auto expected_rr2 = 2 * calc_expected( testn2 );
+
+		assert( rr2 == expected_rr2 );
 	}
 
 	sigfcon.disconnect();
@@ -187,7 +212,7 @@ int main(int, char *[])
 	sigfcon.disconnect();
 	sigfcon.disconnect();
 
-	origsig.emit( 5 );
+	origsig.emit( testn2 );
 
 	pac::signal_forward< decltype(origsig ),
 	                     int( int ) > sigf2( origsig );
@@ -195,8 +220,16 @@ int main(int, char *[])
 
 	auto sigf2con = sigf2.connect( sigfwd2_cb );
 
-	for ( auto r : origsig.emit( 5 ) )
-		std::cout << r << "\n";
+	auto rr3 =
+		[](std::vector<int> con)
+		{
+			return std::accumulate( con.begin(), con.end(), 0 );
+		}( origsig.emit( testn2 ) );
+
+	auto expected_rr3 =
+		expected_rr + sigfwd2_cb( testn2 ) - ( sigfwd_cb( testn2 + 3, testn2 + 5 ) - 1 );
+
+	assert( rr3 == expected_rr3 );
 
 	return 0;
 }

@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Tue Mar 04 15:40:03 KST 2014
+ * Last modified: Tue Mar 04 16:23:48 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -297,6 +297,20 @@ public:
 		BARK_THIS;
 	}
 
+	results_type emit(Args... args)
+	{
+		invoker<Ret(Args...)> inv;
+
+		scoped_dec<std::size_t> dec( ++dispatch_depth );
+		scoped_cleanup<decltype(*this)> cleanup_deleted_slots( *this );
+
+		auto it = slots.begin();
+		auto end = slots.end();
+
+		return inv.dispatch( it, end, std::forward<Args>(args)... );
+	}
+
+private:
 	template<class T>
 	struct scoped_dec
 	{
@@ -331,20 +345,8 @@ public:
 			}
 		}
 	};
+
 	friend struct scoped_cleanup< signal<Ret(Args...)> >;
-
-	results_type emit(Args... args)
-	{
-		invoker<Ret(Args...)> inv;
-
-		scoped_dec<std::size_t> dec( ++dispatch_depth );
-		scoped_cleanup<decltype(*this)> cleanup_deleted_slots( *this );
-
-		auto it = slots.begin();
-		auto end = slots.end();
-
-		return inv.dispatch( it, end, std::forward<Args>(args)... );
-	}
 };
 
 template<class Signal>

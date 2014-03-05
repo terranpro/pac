@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Tue Mar 04 16:23:48 KST 2014
+ * Last modified: Wed Mar 05 16:29:20 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -289,7 +289,7 @@ public:
 			return;
 
 		if ( dispatch_depth > 0 )
-			it->second->delete_requested;
+			it->second->delete_requested = true;
 		else
 			slots.erase( it );
 

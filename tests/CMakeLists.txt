@@ -16,6 +16,15 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/lib
   )
 
-target_link_libraries(
-  sample-gtkmm
+set( callback_test_srcs
+  callback-test.cpp
   )
+
+add_executable( callback-test
+  ${callback_test_srcs}
+  )
+
+include_directories(
+  ${CMAKE_SOURCE_DIR}/lib
+  )
+

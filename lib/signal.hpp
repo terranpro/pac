@@ -271,9 +271,10 @@ public:
 	}
 
 	template<class T, class PMemFunc>
-	connection connect( T *obj, PMemFunc mfunc )
+	connection connect( T&& obj, PMemFunc mfunc )
 	{
-		auto cb = make_callback( obj, mfunc );
+		auto cb = make_callback( std::forward<T>(obj),
+					 mfunc );
 		return connect_slot( slot_type( cb ) );
 	}
 

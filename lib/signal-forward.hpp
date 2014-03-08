@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Tue Mar 04 15:38:23 KST 2014
+ * Last modified: Sun Mar 09 01:13:56 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -33,12 +33,58 @@
 
 namespace pac {
 
-template<class Ret, class... Args>
-struct null_func
+template<class InFuncRet, class... UserFuncRet>
+struct forward_invoker
 {
-	Ret operator()(Args&&... args)
+	template<class InFunc, class UserFunc, class OutFunc,
+	         class... InArgs>
+		auto operator()( InFunc&& infunc,
+		                 UserFunc&& userfunc,
+		                 OutFunc&& outfunc,
+		                 InArgs&&... inargs )
 	{
-		return Ret();
+		auto newargs = infunc( std::forward<InArgs>( inargs )... );
+		return std::forward<OutFunc>(outfunc)(
+			apply( std::forward<UserFunc>(userfunc),
+			       std::move( newargs ) ) );
+	}
+};
+
+template<class UserFuncRet>
+struct forward_invoker<void, UserFuncRet>
+{
+	template<class InFunc, class UserFunc, class OutFunc,
+	         class... InArgs>
+		auto operator()( InFunc&& infunc,
+		                 UserFunc&& userfunc,
+		                 OutFunc&& outfunc,
+		                 InArgs&&... inargs )
+	{
+		// infunc returns void - no newargs
+		infunc( std::forward<InArgs>( inargs )... );
+		// userfunc returns non-void - forward to outfunc which returns anything
+		return std::forward<OutFunc>(outfunc)( std::forward<UserFunc>(userfunc) );
+	}
+};
+
+template<>
+struct forward_invoker<void>
+{
+	template<class InFunc, class UserFunc, class OutFunc,
+	         class... InArgs>
+		auto operator()( InFunc&& infunc,
+		                 UserFunc&& userfunc,
+		                 OutFunc&& outfunc,
+		                 InArgs&&... inargs )
+	{
+		// infunc returns void - no newargs
+		infunc( std::forward<InArgs>( inargs )... );
+
+		// userfunc returns void and takes no args
+		std::forward<UserFunc>(userfunc)();
+
+		// outfunc takes no args returns anything
+		return std::forward<OutFunc>(outfunc)();
 	}
 };
 
@@ -71,16 +117,14 @@ struct forwarded_slot<
 
 	auto reset_callback()
 	{
-		return
+		pac::callback< OutRet( InArgs... ) > cb =
 			[&](InArgs... args)
-		{
-			auto newargs = infunc( std::move( args... ) );
-			return std::move( outfunc(
-				                  std::move(
-					                  apply(
-						                  usercb,
-						                  std::move( newargs ) ) ) ) );
-		};
+			{
+				forward_invoker< InRet, OutArgs... > invoker;
+
+				return invoker( infunc, usercb, outfunc, args... );
+			};
+		return cb;
 	}
 
 	forwarded_slot( forwarded_slot const& other )
@@ -128,6 +172,58 @@ std::tuple<OutArgs...> transform( std::tuple<InArgs...> in_args,
 	return tfunc( in_args );
 }
 
+
+template<class OrigSignal, class NewSignalSignature>
+class signal_forward_base;
+
+template<class OrigRet, class... OrigArgs,
+         class Ret, class... Args>
+class signal_forward_base<
+         signal<OrigRet(OrigArgs...)>,
+         Ret(Args...)
+        >
+{
+protected:
+	using SignalType = signal<OrigRet(OrigArgs...)>;
+
+	SignalType& sig;
+	callback< std::tuple<Args...>( OrigArgs... ) > infunc;
+	callback< OrigRet( Ret ) > outfunc;
+
+	signal_forward_base( SignalType& s )
+		: sig( s )
+	{}
+
+	template<class InFunc, class OutFunc>
+	signal_forward_base( SignalType& s, InFunc inf, OutFunc outf )
+		: sig( s ), infunc( inf ), outfunc( outf )
+	{}
+};
+
+template<class OrigRet, class... OrigArgs,
+         class... Args>
+class signal_forward_base<
+         signal<OrigRet(OrigArgs...)>,
+         void(Args...)
+        >
+{
+protected:
+	using SignalType = signal<OrigRet(OrigArgs...)>;
+
+	SignalType& sig;
+	callback< void( OrigArgs... ) > infunc;
+	callback< OrigRet() > outfunc;
+
+	signal_forward_base( SignalType& s )
+		: sig( s )
+	{}
+
+	template<class InFunc, class OutFunc>
+	signal_forward_base( SignalType& s, InFunc inf, OutFunc outf )
+		: sig( s ), infunc( inf ), outfunc( outf )
+	{}
+};
+
 template<class OrigSignal, class NewSignalSignature>
 class signal_forward;
 
@@ -137,52 +233,44 @@ class signal_forward<
          signal<OrigRet(OrigArgs...)>,
          Ret(Args...)
         >
+	: public signal_forward_base<
+         signal<OrigRet( OrigArgs... )>,
+         Ret( Args... )
+        >
 {
-	using SignalType = signal<OrigRet(OrigArgs...)>;
+	using ParentType = signal_forward_base<signal<OrigRet( OrigArgs... )>,
+	                                       Ret( Args... )>;
 
-	SignalType& sig;
-	callback< std::tuple<Args...>( OrigArgs... ) > infunc;
-	callback< OrigRet( Ret ) > outfunc;
-
-	static auto
-	default_infunc( OrigArgs... args )
-	{
-		return std::move( std::make_tuple( std::move(args...) ) );
-	}
-
-	static OrigRet
-	default_outfunc( Ret ret )
-	{
-		return ret;
-	}
+	using SignalType = typename ParentType::SignalType;
 
 public:
-	template<class InFunc = decltype( &signal_forward::default_infunc ),
-	         class OutFunc = decltype( &signal_forward::default_outfunc )>
+	template<class InFunc,
+	         class OutFunc>
 	signal_forward( SignalType& s,
-	                InFunc inf = &signal_forward::default_infunc,
-	                OutFunc outf = &signal_forward::default_outfunc )
-		: sig( s ), infunc(inf), outfunc(outf)
+	                InFunc inf,
+	                OutFunc outf )
+		: ParentType( s, inf, outf )
 	{}
 
 	template<class Slot>
 	connection connect_slot( Slot&& slot )
 	{
-		return std::move( sig.connect_slot( std::forward<Slot>(slot) ) );
+		return std::move( this->sig.connect_slot( std::forward<Slot>(slot) ) );
 	}
 
 	template<class Func>
 	connection connect( Func&& func )
 	{
-		auto cb = make_callback( std::forward<Func>(func) );
+		//auto cb = make_callback( std::forward<Func>(func) );
+		pac::callback<Ret( Args... )> cb = func;
 		using cb_type = decltype( cb );
 
 		forwarded_slot< cb_type,
-		                decltype( infunc ),
-		                decltype( outfunc ) >
-			fwdslot( std::move( cb ), infunc, outfunc );
+		                decltype( this->infunc ),
+		                decltype( this->outfunc ) >
+			fwdslot( std::move( cb ), this->infunc, this->outfunc );
 
-		return std::move( sig.connect_slot( fwdslot ) );
+		return std::move( this->sig.connect_slot( fwdslot ) );
 	}
 
 	template<class T, class PMemFunc>
@@ -192,11 +280,11 @@ public:
 		using cb_type = decltype( cb );
 
 		forwarded_slot< cb_type,
-		                decltype( infunc ),
-		                decltype( outfunc ) >
-			fwdslot( std::move( cb ), infunc, outfunc );
+		                decltype( this->infunc ),
+		                decltype( this->outfunc ) >
+			fwdslot( std::move( cb ), this->infunc, this->outfunc );
 
-		return std::move( sig.connect_slot( fwdslot) );
+		return std::move( this->sig.connect_slot( fwdslot ) );
 	}
 
 // 	void disconnect( connection& con )

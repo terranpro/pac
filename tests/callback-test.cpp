@@ -52,6 +52,14 @@ void basic_memfunc()
 	assert( cb4( 1, 1 ) == f4->Bar( 1, 1 ) );
 }
 
+struct Functor
+{
+	int operator()(int x, int y )
+	{
+		return x - y + 1337;
+	}
+};
+
 void functor_test()
 {
 	std::function< int( int, int )> func = foo;
@@ -64,6 +72,11 @@ void functor_test()
 	pac::callback< int( int, int )> cb2( bound );
 
 	assert( cb2( 1, 1 ) == bound( 1, 1 ) );
+
+	Functor f;
+	pac::callback< int( int, int )> cb3( f );
+
+	assert( cb3( 1, 1 ) == Functor()( 1, 1 ) );
 }
 
 void lambda_test()

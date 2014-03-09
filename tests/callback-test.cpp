@@ -86,6 +86,18 @@ void makecallback_test()
 	assert( cb2( 1, 2 ) == foo( 1, 2 ) );
 }
 
+template<class T>
+T template_testme( T t )
+{
+	return t;
+}
+
+void templated_test()
+{
+	pac::callback<int( int )> cb2( template_testme<int> );
+	pac::callback<int( int )> cb3( &template_testme<int> );
+}
+
 int main(int argc, char *argv[])
 {
 	basic_func();
@@ -97,6 +109,8 @@ int main(int argc, char *argv[])
 	lambda_test();
 
 	makecallback_test();
+
+	templated_test();
 
 	std::cout << "Success: All tests passed!\n";
 

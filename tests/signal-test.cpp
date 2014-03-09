@@ -215,28 +215,31 @@ int main(int, char *[])
 	origsig.emit( testn2 );
 
 	// test default fwd funcs
-	// pac::signal_forward< decltype(origsig ),
-	//                      int( int ) > sigf2( origsig );
+	pac::signal_forward< decltype(origsig ),
+	                     int( int ) > sigf2( origsig );
 
 
-	// auto sigf2con = sigf2.connect( sigfwd2_cb );
+	auto sigf2con = sigf2.connect( sigfwd2_cb );
 
-	// auto rr3 =
-	// 	[](std::vector<int> con)
-	// 	{
-	// 		return std::accumulate( con.begin(), con.end(), 0 );
-	// 	}( origsig.emit( testn2 ) );
+	auto rr3 =
+		[](std::vector<int> con)
+		{
+			return std::accumulate( con.begin(), con.end(), 0 );
+		}( origsig.emit( testn2 ) );
 
-	// auto expected_rr3 =
-	// 	expected_rr + sigfwd2_cb( testn2 ) - ( sigfwd_cb( testn2 + 3, testn2 + 5 ) - 1 );
+	auto expected_rr3 =
+		expected_rr + sigfwd2_cb( testn2 ) - ( sigfwd_cb( testn2 + 3, testn2 + 5 ) - 1 );
 
-	// assert( rr3 == expected_rr3 );
+	assert( rr3 == expected_rr3 );
 
 	// void parameter signal fwd test - this one's tricky
 	pac::callback<void( void )> void_inf = [](){};
-	pac::callback<int()> void_outf = [](){ return 1; };
+	pac::callback<int()> void_outf = [](){ return 1337; };
 
 	pac::signal<int( void )> sigvoid;
+	// pac::signal_forward< decltype( sigvoid ), void() > sigvoidfwd(
+	// 	sigvoid );
+
 	pac::signal_forward< decltype( sigvoid ), void() > sigvoidfwd(
 		sigvoid,
 		void_inf,
@@ -248,7 +251,15 @@ int main(int, char *[])
 
 	auto sigvoid_con = sigvoidfwd.connect( void_usercb );
 
-	sigvoid.emit();
+	auto void_res = sigvoid.emit();
+	for ( auto& v : void_res )
+		std::cout << "v = " << v << "\n";
+
+	assert( void_res[0] == 1337 );
+
+	// signal forward int(void) case:
+	pac::signal< int( void ) > s99;
+	pac::signal_forward< decltype( s99 ), int( void ) > s99fwd( s99 );
 
 	return 0;
 }

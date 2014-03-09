@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Sun Mar 09 01:13:56 KST 2014
+ * Last modified: Sun Mar 09 21:52:08 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -33,7 +33,8 @@
 
 namespace pac {
 
-template<class InFuncRet, class... UserFuncRet>
+template<class InFuncRet,
+         class... UserFuncRet>
 struct forward_invoker
 {
 	template<class InFunc, class UserFunc, class OutFunc,
@@ -47,6 +48,18 @@ struct forward_invoker
 		return std::forward<OutFunc>(outfunc)(
 			apply( std::forward<UserFunc>(userfunc),
 			       std::move( newargs ) ) );
+	}
+
+	template<class... InArgs>
+	static InFuncRet default_infunc( InArgs&&... inargs )
+	{
+		return std::make_tuple( std::forward<InArgs>( inargs )... );
+	}
+
+	template<class OR, class R>
+	static OR default_outfunc( R ret )
+	{
+		return ret;
 	}
 };
 
@@ -62,9 +75,26 @@ struct forward_invoker<void, UserFuncRet>
 	{
 		// infunc returns void - no newargs
 		infunc( std::forward<InArgs>( inargs )... );
+
 		// userfunc returns non-void - forward to outfunc which returns anything
 		return std::forward<OutFunc>(outfunc)( std::forward<UserFunc>(userfunc) );
 	}
+
+	template<class... InArgs>
+	static void default_infunc( InArgs&&... inargs )
+	{
+		return;
+	}
+
+	// TODO: Alternate signature that also seemed to work?!
+	//static UserFuncRet default_outfunc( UserFuncRet uret )
+
+	template<class OR, class R>
+	static OR default_outfunc( R uret )
+	{
+		return uret;
+	}
+
 };
 
 template<>
@@ -85,6 +115,18 @@ struct forward_invoker<void>
 
 		// outfunc takes no args returns anything
 		return std::forward<OutFunc>(outfunc)();
+	}
+
+	//template<class... InArgs>
+	static void default_infunc()//InArgs&&... inargs )
+	{
+		return;
+	}
+
+	template<class OutFuncRet>
+	static OutFuncRet default_outfunc()
+	{
+		return OutFuncRet();
 	}
 };
 
@@ -172,6 +214,9 @@ std::tuple<OutArgs...> transform( std::tuple<InArgs...> in_args,
 	return tfunc( in_args );
 }
 
+template<class UserRet, class OutRet>
+OutRet out_invoker( UserRet r )
+{	return r; }
 
 template<class OrigSignal, class NewSignalSignature>
 class signal_forward_base;
@@ -190,9 +235,24 @@ protected:
 	callback< std::tuple<Args...>( OrigArgs... ) > infunc;
 	callback< OrigRet( Ret ) > outfunc;
 
+	using DefaultOutInvoker = decltype( out_invoker<Ret,OrigRet> );
+
 	signal_forward_base( SignalType& s )
-		: sig( s )
-	{}
+		: sig( s ),
+		  infunc( &forward_invoker<std::tuple<Args...>,Ret>::template default_infunc<OrigArgs...>),
+		  outfunc( &forward_invoker<std::tuple<Args...>,Ret>::template default_outfunc<OrigRet, Ret> )
+	{
+		// infunc = []( OrigArgs... args )
+		// 	{
+		// 		return forward_invoker<std::tuple<Args...>,Ret>::default_infunc( args... );
+		// 	};
+
+		// //outfunc = []( Ret r ) { return out_invoker<Ret, OrigRet>( r ); };
+		// outfunc = []( Ret r )
+		// 	{
+		// 		return forward_invoker<std::tuple<Args...>,Ret>::template default_outfunc<Ret>( r );
+		// 	};
+	}
 
 	template<class InFunc, class OutFunc>
 	signal_forward_base( SignalType& s, InFunc inf, OutFunc outf )
@@ -215,7 +275,9 @@ protected:
 	callback< OrigRet() > outfunc;
 
 	signal_forward_base( SignalType& s )
-		: sig( s )
+		: sig( s ),
+		  infunc( &forward_invoker<void>::default_infunc ),
+		  outfunc( &forward_invoker<void>::default_outfunc<OrigRet> )
 	{}
 
 	template<class InFunc, class OutFunc>
@@ -244,6 +306,10 @@ class signal_forward<
 	using SignalType = typename ParentType::SignalType;
 
 public:
+	signal_forward( SignalType& s )
+		: ParentType( s )
+	{}
+
 	template<class InFunc,
 	         class OutFunc>
 	signal_forward( SignalType& s,

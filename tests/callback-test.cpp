@@ -111,6 +111,37 @@ void templated_test()
 	pac::callback<int( int )> cb3( &template_testme<int> );
 }
 
+struct base
+{
+	virtual int op() { return 31; }
+};
+
+struct derived : base
+{
+	virtual int op() { return 39; }
+};
+
+void virtual_test()
+{
+	base b;
+	derived d;
+
+	pac::callback< int() > cb1( &b, &base::op );
+	pac::callback< int() > cb2( &d, &base::op );
+
+	pac::callback< int() > cb3( std::bind( &base::op, &b ) );
+	pac::callback< int() > cb4( std::bind( &base::op, &d ) );
+
+	assert( cb1() == b.op() );
+	assert( cb2() == d.op() );
+
+	assert( cb3() == b.op() );
+	assert( cb4() == d.op() );
+
+	assert( cb1() != cb2() );
+	assert( cb1() == cb3() );
+}
+
 int main(int argc, char *argv[])
 {
 	basic_func();
@@ -124,6 +155,8 @@ int main(int argc, char *argv[])
 	makecallback_test();
 
 	templated_test();
+
+	virtual_test();
 
 	std::cout << "Success: All tests passed!\n";
 

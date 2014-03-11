@@ -28,3 +28,15 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/lib
   )
 
+set( context_test_srcs
+  context-test.cpp
+  )
+
+add_executable( context-test
+  ${context_test_srcs}
+  )
+
+include_directories(
+  ${CMAKE_SOURCE_DIR}/lib
+  )
+

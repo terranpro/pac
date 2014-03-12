@@ -142,6 +142,75 @@ void virtual_test()
 	assert( cb1() == cb3() );
 }
 
+struct copytest
+{
+	std::shared_ptr<std::size_t> copies;
+	std::shared_ptr<std::size_t> moves;
+
+	copytest()
+		: copies{ std::make_shared<std::size_t>(0) },
+		  moves{ std::make_shared<std::size_t>(0) }
+	{}
+
+	copytest( const copytest& other )
+		: copies{ other.copies },
+		  moves{ other.moves }
+	{
+		(*copies)++;
+	}
+
+	copytest( copytest&& other )
+		: copies{ other.copies },
+		  moves{ other.moves }
+	{
+		(*moves)++;
+	}
+
+	copytest& operator=( const copytest& other )
+	{
+		copies = other.copies;
+		moves = other.moves;
+
+		(*copies)++;
+
+		return *this;
+	}
+
+	copytest& operator=( copytest&& other )
+	{
+		copies = other.copies;
+		moves = other.moves;
+
+		(*moves)++;
+
+		return *this;
+	}
+
+	void debug()
+	{
+		std::cout << "copies: " << *copies
+		          << " , moves: " << *moves << "\n";
+	}
+};
+
+int copytest_cb( copytest ct )
+{
+	ct.debug();
+	return *(ct.copies);
+}
+
+void copy_test()
+{
+	copytest ct;
+	pac::callback< int( copytest ) > cb( copytest_cb );
+
+	ct.debug();
+
+	cb( ct );
+	cb( ct );
+	cb( std::ref(ct) );
+}
+
 int main(int argc, char *argv[])
 {
 	basic_func();
@@ -157,6 +226,8 @@ int main(int argc, char *argv[])
 	templated_test();
 
 	virtual_test();
+
+	copy_test();
 
 	std::cout << "Success: All tests passed!\n";
 

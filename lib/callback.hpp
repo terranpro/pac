@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:15:18 KST 2014
- * Last modified: Wed Mar 12 10:52:33 KST 2014
+ * Last modified: Wed Mar 12 18:07:18 KST 2014
  */
 
 #ifndef CALLBACK_HPP
@@ -43,7 +43,7 @@ class callback< Ret(Args...) >
 	{
 		virtual ~concept()
 		{}
-		virtual Ret operator()(Args&&... args) = 0;
+		virtual Ret operator()(Args... args) = 0;
 	};
 
 	template<class Func>
@@ -51,7 +51,7 @@ class callback< Ret(Args...) >
 	{
 		Func func;
 
-		Ret operator()(Args&&... args)
+		Ret operator()(Args... args)
 		{
 			return func( std::forward<Args>(args)... );
 		}
@@ -72,7 +72,7 @@ class callback< Ret(Args...) >
 			: obj( std::forward<U>(o) ), mfunc( std::forward<M>(m) )
 		{}
 
-		Ret operator()(Args&&... args)
+		Ret operator()(Args... args)
 		{
 			// Use (*obj).*mfunc for smart pointers (e.g. unique_ptr)
 			return ( (*obj).*mfunc )( std::forward<Args>(args)... );
@@ -111,7 +111,7 @@ public:
 	Ret operator()(Args... args)
 	{
 		if ( con )
-			return (*con)( std::move(args)... );
+			return (*con)( std::forward<Args>(args)... );
 		return Ret();
 	}
 };

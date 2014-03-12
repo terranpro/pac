@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:15:18 KST 2014
- * Last modified: Thu Mar 06 00:11:17 KST 2014
+ * Last modified: Wed Mar 12 10:52:33 KST 2014
  */
 
 #ifndef CALLBACK_HPP
@@ -39,67 +39,67 @@ class callback;
 template<class Ret, class... Args>
 class callback< Ret(Args...) >
 {
-  struct concept
-  {
-    virtual ~concept()
-    {}
-    virtual Ret operator()(Args&&... args) = 0;
-  };
+	struct concept
+	{
+		virtual ~concept()
+		{}
+		virtual Ret operator()(Args&&... args) = 0;
+	};
 
-  template<class Func>
-  struct model : concept
-  {
-    Func func;
+	template<class Func>
+	struct model : concept
+	{
+		Func func;
 
-    Ret operator()(Args&&... args)
-    {
-	    return func( std::forward<Args>(args)... );
-    }
+		Ret operator()(Args&&... args)
+		{
+			return func( std::forward<Args>(args)... );
+		}
 
-    model(Func f)
-	    : func( f )
-    {}
-  };
+		model(Func f)
+			: func( f )
+		{}
+	};
 
-  template<class T, class PMemFunc>
-  struct model_memfunc : concept
-  {
-    T obj;
-    PMemFunc mfunc;
+	template<class T, class PMemFunc>
+	struct model_memfunc : concept
+	{
+		T obj;
+		PMemFunc mfunc;
 
-    template<class U, class M>
-    model_memfunc( U&& o, M&& m )
-      : obj( std::forward<U>(o) ), mfunc( std::forward<M>(m) )
-    {}
+		template<class U, class M>
+		model_memfunc( U&& o, M&& m )
+			: obj( std::forward<U>(o) ), mfunc( std::forward<M>(m) )
+		{}
 
-    Ret operator()(Args&&... args)
-	  {
-		  // Use (*obj).*mfunc for smart pointers (e.g. unique_ptr)
-		  return ( (*obj).*mfunc )( std::forward<Args>(args)... );
-    }
-  };
+		Ret operator()(Args&&... args)
+		{
+			// Use (*obj).*mfunc for smart pointers (e.g. unique_ptr)
+			return ( (*obj).*mfunc )( std::forward<Args>(args)... );
+		}
+	};
 
-  std::shared_ptr<concept> con;
+	std::shared_ptr<concept> con;
 
 public:
 	using return_type = Ret;
 
 public:
-  ~callback()
-  {}
-
-  callback()
-    : con( nullptr )
-  {}
-
-  template<class Func>
-  callback(Func func)
-	  : con( new model< Func >(func) )
+	~callback()
 	{}
 
-  template<class T, class PMemFunc>
-  callback(T&& obj, PMemFunc memfunc)
-    : con( new model_memfunc<T, PMemFunc>( std::forward<T>(obj), memfunc) )
+	callback()
+		: con( nullptr )
+	{}
+
+	template<class Func>
+	callback(Func func)
+		: con( new model< Func >(func) )
+	{}
+
+	template<class T, class PMemFunc>
+	callback(T&& obj, PMemFunc memfunc)
+		: con( new model_memfunc<T, PMemFunc>( std::forward<T>(obj), memfunc) )
 	{}
 
 	callback(callback&&) = default;
@@ -108,19 +108,19 @@ public:
 	callback(callback const&) = default;
 	callback& operator=(callback const&) = default;
 
-  Ret operator()(Args... args)
+	Ret operator()(Args... args)
 	{
-    if ( con )
-	    return (*con)( std::move(args)... );
-    return Ret();
-  }
+		if ( con )
+			return (*con)( std::move(args)... );
+		return Ret();
+	}
 };
 
 template<class T, class Ret, class... Args>
 auto make_callback( T *obj, Ret (T::*mfunc)(Args...) )
 	-> callback<Ret( Args... )>
 {
-  callback<Ret( Args... )> cb{ obj, mfunc };
+	callback<Ret( Args... )> cb{ obj, mfunc };
 	return cb;
 }
 

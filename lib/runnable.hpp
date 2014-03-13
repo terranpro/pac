@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Tue Mar 11 17:40:26 KST 2014
- * Last modified: Tue Mar 11 18:48:40 KST 2014
+ * Last modified: Thu Mar 13 23:56:53 KST 2014
  */
 
 #ifndef RUNNABLE_HPP
@@ -39,6 +39,7 @@ namespace pac {
 
 enum class runnable_status
 {
+	INVALID,
 	CONTINUING,
 	FINISHED,
 	ABORT,
@@ -50,6 +51,7 @@ std::string as_string( runnable_status const& r )
 	static std::map< runnable_status,
 	                 std::string > runstrmap =
 		{
+			{ runnable_status::INVALID, "INVALID" },
 			{ runnable_status::CONTINUING, "CONTINUING" },
 			{ runnable_status::FINISHED, "FINISHED" },
 			{ runnable_status::ABORT, "ABORT" },
@@ -94,6 +96,10 @@ class runnable
 	std::shared_ptr< runnable_concept > rcon;
 
 public:
+	runnable()
+		: rcon{}
+	{}
+
 	template<class Callback, class... Args>
 	runnable( Callback&& cb, Args&&... args )
 		: rcon( std::make_shared<runnable_model<Callback, Args...>>(
@@ -103,6 +109,9 @@ public:
 
 	runnable_status run() const
 	{
+		if ( !rcon )
+			return runnable_status::INVALID;
+
 		return (*rcon)();
 	}
 

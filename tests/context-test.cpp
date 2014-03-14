@@ -18,6 +18,78 @@ int donk( int x )
 	return x + 1;
 }
 
+struct player
+{
+	std::size_t id;
+	std::shared_ptr<pac::context> ctxt;
+	pac::toe toe;
+	std::atomic<bool> primary;
+	//pac::callback<void()> cb;
+	player *prev;
+
+	player( std::size_t i )
+		: id(i), ctxt{ pac::context::create() },
+		  toe{}, primary{false}, prev{nullptr}
+	{
+		init();
+	}
+
+	player( std::size_t i, player *r, bool p = false )
+		: id(i), ctxt{ pac::context::create() },
+		  toe{}, primary{p}, prev{r}
+	{
+		init();
+	}
+
+	void init()
+	{
+		pac::callback<void()> cb = pac::callback<void()>( this, &player::running );
+		ctxt->add_runnable( std::make_shared< pac::runnable >(cb) );
+		toe.launch( ctxt, pac::toe::async );
+	}
+
+	void running()
+	{
+		if (!primary)
+			toe.pause();
+
+		std::cout << "player " << id << " is running with the ball...\n";
+		std::this_thread::sleep_for( std::chrono::seconds(1) );
+		if (prev)
+			pass();
+		else
+			touchdown();
+	}
+
+	void pass()
+	{
+		primary = false;
+		prev->heycatch();
+		toe.pause();
+	}
+
+	void heycatch()
+	{
+		primary = true;
+		toe.resume();
+	}
+
+	void touchdown()
+	{
+		std::cout << "player " << id << " has scored! TOUCHDOWN!!\n";
+		toe.pause();
+	}
+
+	void quit()
+	{
+		toe.quit();
+		if (prev)
+			prev->quit();
+	}
+
+};
+
+
 int main(int argc, char *argv[])
 {
 	double x = 2.;
@@ -28,33 +100,17 @@ int main(int argc, char *argv[])
 
 	std::cout << pac::as_string( r.run() ) << "\n";
 
-	pac::toe toe;
-	auto ctxt = pac::context::create();
+	std::unique_ptr<player> p1 { new player( 1 ) };
+	std::unique_ptr<player> p2 { new player( 2, p1.get() ) };
+	std::unique_ptr<player> p3 { new player( 3, p2.get() ) };
+	std::unique_ptr<player> p4 { new player( 4, p3.get(), true ) };
 
-	ctxt->add_runnable( std::make_shared< pac::runnable >( donk, x ) );
-	toe.launch( ctxt, pac::toe::async );
+	std::this_thread::sleep_for( std::chrono::seconds(10) );
 
-	std::this_thread::sleep_for( std::chrono::milliseconds(500) );
-	toe.pause();
-	std::cout << "Paused.\n";
-
-	std::this_thread::sleep_for( std::chrono::milliseconds(5000) );
-
-	std::cout << "Resumed.\n";
-
-	toe.resume();
-
-	std::this_thread::sleep_for( std::chrono::milliseconds(500) );
-	toe.pause();
-	std::cout << "Paused.\n";
-
-	std::this_thread::sleep_for( std::chrono::milliseconds(5000) );
-
-	std::cout << "Resumed.\n";
-
-	toe.resume();
-
-	toe.join();
+	p4->quit();
+	p3->quit();
+	p2->quit();
+	p1->quit();
 
 	return 0;
 }

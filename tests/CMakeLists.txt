@@ -5,7 +5,7 @@ set( test_srcs
   )
 
 set( CMAKE_CXX_FLAGS
-  ${CMAKE_CXX_FLAGS} "-std=c++11 -pthread"
+  ${CMAKE_CXX_FLAGS} "-std=c++11 -pthread -g -gdwarf-2"
   )
 
 add_executable( signal-test

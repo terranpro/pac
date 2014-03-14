@@ -142,31 +142,31 @@ void virtual_test()
 	assert( cb1() == cb3() );
 }
 
-struct copytest
+struct copyargtest
 {
 	std::shared_ptr<std::size_t> copies;
 	std::shared_ptr<std::size_t> moves;
 
-	copytest()
+	copyargtest()
 		: copies{ std::make_shared<std::size_t>(0) },
 		  moves{ std::make_shared<std::size_t>(0) }
 	{}
 
-	copytest( const copytest& other )
+	copyargtest( const copyargtest& other )
 		: copies{ other.copies },
 		  moves{ other.moves }
 	{
 		(*copies)++;
 	}
 
-	copytest( copytest&& other )
+	copyargtest( copyargtest&& other )
 		: copies{ other.copies },
 		  moves{ other.moves }
 	{
 		(*moves)++;
 	}
 
-	copytest& operator=( const copytest& other )
+	copyargtest& operator=( const copyargtest& other )
 	{
 		copies = other.copies;
 		moves = other.moves;
@@ -176,7 +176,7 @@ struct copytest
 		return *this;
 	}
 
-	copytest& operator=( copytest&& other )
+	copyargtest& operator=( copyargtest&& other )
 	{
 		copies = other.copies;
 		moves = other.moves;
@@ -193,22 +193,38 @@ struct copytest
 	}
 };
 
-int copytest_cb( copytest ct )
+int copyargtest_cb( copyargtest ct )
 {
 	ct.debug();
 	return *(ct.copies);
 }
 
-void copy_test()
+void copyarg_test()
 {
-	copytest ct;
-	pac::callback< int( copytest ) > cb( copytest_cb );
+	copyargtest ct;
+	pac::callback< int( copyargtest ) > cb( copyargtest_cb );
 
 	ct.debug();
 
 	cb( ct );
 	cb( ct );
 	cb( std::ref(ct) );
+}
+
+void scope_test()
+{
+	struct cb_holder
+	{
+		pac::callback<void()> cb;
+	};
+
+	cb_holder holder;
+	{
+		auto cb = [](){ return pac::callback<void ()>( [](){ std::cout <<"Fuck\n";} ); }();
+		holder.cb = std::move(cb);
+	}
+
+	holder.cb();
 }
 
 int main(int argc, char *argv[])
@@ -227,7 +243,9 @@ int main(int argc, char *argv[])
 
 	virtual_test();
 
-	copy_test();
+	copyarg_test();
+
+	scope_test();
 
 	std::cout << "Success: All tests passed!\n";
 

@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Mar 10 17:30:53 KST 2014
- * Last modified: Thu Mar 13 23:56:23 KST 2014
+ * Last modified: Fri Mar 14 18:46:51 KST 2014
  */
 
 #ifndef PAC_CONTEXT_HPP
@@ -59,9 +59,13 @@ private:
 	thread_id tid;
 
 public:
+	context()
+		: runnables{}, cid{}, tid{}
+	{}
+
 	static context_ptr create()
 	{
-		return std::make_shared< context >();
+		return std::make_shared<context>();
 	}
 
 	runnable_ptr next_runnable()
@@ -84,8 +88,27 @@ public:
 	{
 		runnables.clear();
 	}
-};
 
+	void set_thread_id( thread_id id )
+	{
+		tid = id;
+	}
+
+	void set_thread_id()
+	{
+		tid = std::this_thread::get_id();
+	}
+
+	thread_id get_thread_id()
+	{
+		return tid;
+	}
+
+	static thread_id current_thread_id()
+	{
+		return std::this_thread::get_id();
+	}
+};
 
 struct context_invoker
 {
@@ -95,7 +118,9 @@ struct context_invoker
 
 	context_invoker( context_ptr c )
 		: ctxt(c)
-	{}
+	{
+		ctxt->set_thread_id();
+	}
 
 	bool iterate()
 	{
@@ -147,6 +172,9 @@ class toe
 
 	void handle_pause()
 	{
+		if ( ctxt->get_thread_id() != ctxt->current_thread_id() )
+			return;
+
 		std::unique_lock<std::mutex> lock( mutex );
 		while( pauseme == true )
 			cond.wait( lock );
@@ -190,13 +218,13 @@ public:
 	}
 
 	void pause()
-	{ pauseme = true; }
+	{ pauseme = true; handle_pause(); }
 
 	void resume()
 	{ pauseme = false; handle_resume(); }
 
 	void quit()
-	{ quitme = true; }
+	{ quitme = true; resume(); }
 
 	void join()
 	{
@@ -208,6 +236,11 @@ public:
 	{
 		return thr.joinable();
 	}
+};
+
+struct toe_callback
+{
+
 };
 
 } // namespace pac

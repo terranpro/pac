@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Tue Mar 11 17:40:26 KST 2014
- * Last modified: Thu Mar 13 23:56:53 KST 2014
+ * Last modified: Fri Mar 14 19:46:00 KST 2014
  */
 
 #ifndef RUNNABLE_HPP
@@ -71,7 +71,7 @@ class runnable
 	{
 		virtual ~runnable_concept() {}
 
-		virtual runnable_status operator()() const = 0;
+		virtual runnable_status operator()() = 0;
 	};
 
 	template<class Callback, class... Args>
@@ -86,7 +86,7 @@ class runnable
 			, args( std::forward<A>(a)... )
 		{}
 
-		virtual runnable_status operator()() const
+		virtual runnable_status operator()()
 		{
 			apply( cb, args );
 			return runnable_status::CONTINUING;
@@ -100,14 +100,17 @@ public:
 		: rcon{}
 	{}
 
+	// Take Callback by value as its a handle (pac::callback<>)
+	// Otherwise, type deduction will resolve to a lvalue ref, and a ref
+	// to a local stack callback could be kept dangling and invoked
+	// later
 	template<class Callback, class... Args>
-	runnable( Callback&& cb, Args&&... args )
+	runnable( Callback cb, Args&&... args )
 		: rcon( std::make_shared<runnable_model<Callback, Args...>>(
-			        std::forward<Callback>(cb),
-			        std::forward<Args>(args)...) )
+			        cb, std::forward<Args>(args)...) )
 	{}
 
-	runnable_status run() const
+	runnable_status run()
 	{
 		if ( !rcon )
 			return runnable_status::INVALID;

@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Wed Mar 05 16:29:20 KST 2014
+ * Last modified: Sun Mar 16 17:50:32 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -271,10 +271,9 @@ public:
 	}
 
 	template<class T, class PMemFunc>
-	connection connect( T&& obj, PMemFunc mfunc )
+	connection connect( PMemFunc mfunc, T&& obj )
 	{
-		auto cb = make_callback( std::forward<T>(obj),
-					 mfunc );
+		auto cb = make_callback( mfunc, std::forward<T>(obj) );
 		return connect_slot( slot_type( cb ) );
 	}
 

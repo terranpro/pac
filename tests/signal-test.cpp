@@ -39,12 +39,10 @@ struct Client
 		: server(s)
 	{
 		con_add =
-			server.sigadd.connect(
-				this, &Client::OnAdd);
+			server.sigadd.connect( &Client::OnAdd, this );
 		BARK;
 		con_sub =
-			server.sigsub.connect(
-				this, &Client::OnSub);
+			server.sigsub.connect( &Client::OnSub, this );
 	}
 
 	int OnAdd( int in )

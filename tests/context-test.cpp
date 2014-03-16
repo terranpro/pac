@@ -54,7 +54,7 @@ struct player
 
 	void init()
 	{
-		pac::callback<void()> cb = pac::callback<void()>( this, &player::running );
+		pac::callback<void()> cb = pac::callback<void()>( &player::running, this );
 		ctxt->add_callback( cb );
 		toe.launch( ctxt, pac::toe::async );
 	}

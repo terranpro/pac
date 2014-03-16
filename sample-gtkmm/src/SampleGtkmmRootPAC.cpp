@@ -155,7 +155,7 @@ struct RootController
 	{
 		connections.push_back(
 			pre->SignalButtonClicked().connect(
-				this, &RootController::OnButtonClicked ) );
+				&RootController::OnButtonClicked, this ) );
 	}
 
 	void OnButtonClicked()

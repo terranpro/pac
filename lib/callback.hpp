@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:15:18 KST 2014
- * Last modified: Wed Mar 12 18:07:18 KST 2014
+ * Last modified: Sun Mar 16 17:57:52 KST 2014
  */
 
 #ifndef CALLBACK_HPP
@@ -61,14 +61,14 @@ class callback< Ret(Args...) >
 		{}
 	};
 
-	template<class T, class PMemFunc>
+	template<class PMemFunc, class T>
 	struct model_memfunc : concept
 	{
 		T obj;
 		PMemFunc mfunc;
 
-		template<class U, class M>
-		model_memfunc( U&& o, M&& m )
+		template<class M, class U>
+		model_memfunc( M&& m, U&& o )
 			: obj( std::forward<U>(o) ), mfunc( std::forward<M>(m) )
 		{}
 
@@ -97,9 +97,9 @@ public:
 		: con( new model< Func >(func) )
 	{}
 
-	template<class T, class PMemFunc>
-	callback(T&& obj, PMemFunc memfunc)
-		: con( new model_memfunc<T, PMemFunc>( std::forward<T>(obj), memfunc) )
+	template<class PMemFunc, class T>
+	callback(PMemFunc memfunc, T&& obj)
+		: con( new model_memfunc<PMemFunc, T>( memfunc, std::forward<T>(obj) ) )
 	{}
 
 	callback(callback&&) = default;
@@ -117,10 +117,10 @@ public:
 };
 
 template<class T, class Ret, class... Args>
-auto make_callback( T *obj, Ret (T::*mfunc)(Args...) )
+auto make_callback( Ret (T::*mfunc)(Args...), T *obj )
 	-> callback<Ret( Args... )>
 {
-	callback<Ret( Args... )> cb{ obj, mfunc };
+	callback<Ret( Args... )> cb{ mfunc, obj };
 	return cb;
 }
 

@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Sun Mar 09 21:52:08 KST 2014
+ * Last modified: Sun Mar 16 17:51:45 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -202,7 +202,7 @@ public:
 	signal_catcher( signal<Ret(Args...)>& s, InFunc inf, OutFunc outf )
 		: infunc(inf), outfunc(outf)
 	{
-		con = s.connect( this, &signal_catcher::operator() );
+		con = s.connect( &signal_catcher::operator(), this );
 	}
 
 };
@@ -339,8 +339,8 @@ public:
 		return std::move( this->sig.connect_slot( fwdslot ) );
 	}
 
-	template<class T, class PMemFunc>
-	connection connect( T *obj, PMemFunc mfunc )
+	template<class PMemFunc, class T>
+	connection connect( PMemFunc mfunc, T *obj )
 	{
 		auto cb = make_callback( obj, mfunc );
 		using cb_type = decltype( cb );

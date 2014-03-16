@@ -28,25 +28,25 @@ void basic_func()
 void basic_memfunc()
 {
 	Foo f;
-	pac::callback<int( int, int )> cb( &f, &Foo::Bar );
+	pac::callback<int( int, int )> cb( &Foo::Bar, &f );
 
 	assert( cb( 1, 1 ) == f.Bar( 1, 1 ) );
 
 	Foo *f2 = new Foo;
-	pac::callback<int( int, int )> cb2( f2, &Foo::Bar );
+	pac::callback<int( int, int )> cb2( &Foo::Bar, f2 );
 
 	assert( cb2( 1, 1 ) == f2->Bar( 1, 1 ) );
 	delete f2;
 
 	std::unique_ptr<Foo> f3( new Foo );
-	pac::callback<int( int, int )> cb3( f3, &Foo::Bar );
+	pac::callback<int( int, int )> cb3( &Foo::Bar, f3 );
 
 	assert( cb3( 1, 1 ) == f3->Bar( 1, 1 ) );
 
 	std::cout << "f3 @ " << &f3 << "\n";
 
 	std::shared_ptr<Foo> f4( new Foo );
-	pac::callback<int( int, int )> cb4( f4, &Foo::Bar );
+	pac::callback<int( int, int )> cb4( &Foo::Bar, f4 );
 	std::cout << f4.use_count() << "\n";
 
 	assert( cb4( 1, 1 ) == f4->Bar( 1, 1 ) );
@@ -92,7 +92,7 @@ void makecallback_test()
 	Foo f;
 	std::unique_ptr<Foo> f2( new Foo );
 
-	auto cb = pac::make_callback( &f, &Foo::Bar );
+	auto cb = pac::make_callback( &Foo::Bar, &f );
 
 	auto cb2 = pac::make_callback( foo );
 
@@ -126,8 +126,8 @@ void virtual_test()
 	base b;
 	derived d;
 
-	pac::callback< int() > cb1( &b, &base::op );
-	pac::callback< int() > cb2( &d, &base::op );
+	pac::callback< int() > cb1( &base::op, &b );
+	pac::callback< int() > cb2( &base::op, &d );
 
 	pac::callback< int() > cb3( std::bind( &base::op, &b ) );
 	pac::callback< int() > cb4( std::bind( &base::op, &d ) );
@@ -215,16 +215,22 @@ void scope_test()
 {
 	struct cb_holder
 	{
-		pac::callback<void()> cb;
+		int success = 0;
+		pac::callback<void(int&)> cb;
 	};
 
 	cb_holder holder;
 	{
-		auto cb = [](){ return pac::callback<void ()>( [](){ std::cout <<"Fuck\n";} ); }();
+		auto cb = [&holder]()
+			{
+				return pac::callback<void (int&)>( [](int& s){ s = 1; } );
+			}();
 		holder.cb = std::move(cb);
 	}
 
-	holder.cb();
+	assert( holder.success == 0 );
+	holder.cb(holder.success);
+	assert( holder.success == 1 );
 }
 
 int main(int argc, char *argv[])

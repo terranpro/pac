@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Mar 10 17:30:53 KST 2014
- * Last modified: Sun Mar 16 17:34:23 KST 2014
+ * Last modified: Sun Mar 16 21:26:15 KST 2014
  */
 
 #ifndef PAC_CONTEXT_HPP
@@ -90,6 +90,7 @@ public:
 		runnable_ptr run =
 			std::make_shared<runnable>( callback, std::forward<Args>(args)... );
 
+		run->set_once();
 		add_runnable( run );
 	}
 
@@ -164,7 +165,7 @@ class toe
 		context_invoker inv( ctxt );
 
 		for ( bool finished = false;
-		        !finished;
+		      !finished;
 		    ) {
 
 			if ( pauseme )
@@ -173,15 +174,20 @@ class toe
 			if ( quitme )
 				break;
 
-			finished = !inv.iterate();
+			inv.iterate();
 		}
 
 		handle_quit();
 	}
 
+	bool is_toe_context()
+	{
+		return ctxt->get_thread_id() == context::current_thread_id();
+	}
+
 	void handle_pause()
 	{
-		if ( ctxt->get_thread_id() != ctxt->current_thread_id() )
+		if ( !is_toe_context() )
 			return;
 
 		std::unique_lock<std::mutex> lock( mutex );
@@ -246,13 +252,41 @@ public:
 		return thr.joinable();
 	}
 
-	void sleep_for( double time_s )
-	{}
+	void sleep_for( long long time_us )
+	{
+		if ( is_toe_context() )
+			std::this_thread::sleep_for( std::chrono::microseconds( time_us ) );
+	}
 
 };
 
-struct toe_callback
+template<class Signature>
+struct toe_callback;
+
+template<class Ret, class... Args>
+struct toe_callback< Ret( Args... ) >
 {
+	context& ctxt;
+	callback<Ret( Args... )> cb;
+	callback<Ret( Args... )> stubcb;
+
+	template<class Callback>
+	toe_callback( context& c, Callback callback )
+		: ctxt( c ), cb( callback ), stubcb()
+	{
+		stubcb = pac::callback<Ret( Args... )>( &toe_callback::operator(), this );
+	}
+
+	Ret operator()(Args... args)
+	{
+		ctxt.add_callback( cb, std::forward<Args>(args)... );
+		return Ret();
+	}
+
+	operator callback<Ret( Args... )>&()
+	{
+		return stubcb;
+	}
 
 };
 

@@ -1,6 +1,7 @@
 #include "callback.hpp"
 #include "runnable.hpp"
 #include "context.hpp"
+#include "signal.hpp"
 
 #include <iostream>
 #include <thread>
@@ -115,11 +116,36 @@ void football_test()
 	p1->quit();
 }
 
+void toe_callback_test()
+{
+	pac::callback<void( int )> cb(
+		[](int x)
+		{
+			std::cout << std::this_thread::get_id() << ": " << x+3 << "\n";
+		} );
+	std::shared_ptr<pac::context> ctxt = pac::context::create();
+	pac::signal<void( int )> sig;
+	pac::toe_callback<void( int )> toecb( *ctxt, cb );
+	pac::toe toe;
+
+	toe.launch( ctxt, pac::toe::async );
+
+	std::cout << std::this_thread::get_id() << ": START!\n";
+
+	auto con = sig.connect_slot( pac::slot<decltype( cb )>( static_cast<decltype( cb )>(toecb) ) );
+	for ( auto count = 0; count < 5; ++count ) {
+		sig.emit( 11 );
+		std::this_thread::sleep_for( std::chrono::milliseconds( 250 ) );
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	basic_runnable_test();
 
 	football_test();
+
+	toe_callback_test();
 
 	return 0;
 }

@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Tue Mar 11 17:40:26 KST 2014
- * Last modified: Fri Mar 14 19:46:00 KST 2014
+ * Last modified: Sun Mar 16 19:22:49 KST 2014
  */
 
 #ifndef RUNNABLE_HPP
@@ -65,13 +65,29 @@ std::string as_string( runnable_status const& r )
 	return x->second;
 }
 
+struct runnable_context
+{
+	bool once;
+	runnable_status status;
+
+	runnable_context()
+		: once( false )
+		, status( runnable_status::CONTINUING )
+	{}
+
+	runnable_context( bool once_ )
+		: once( once_ )
+		, status( once ? runnable_status::FINISHED : runnable_status::CONTINUING )
+	{}
+};
+
 class runnable
 {
 	struct runnable_concept
 	{
 		virtual ~runnable_concept() {}
 
-		virtual runnable_status operator()() = 0;
+		virtual void operator()() = 0;
 	};
 
 	template<class Callback, class... Args>
@@ -86,14 +102,14 @@ class runnable
 			, args( std::forward<A>(a)... )
 		{}
 
-		virtual runnable_status operator()()
+		virtual void operator()()
 		{
 			apply( cb, args );
-			return runnable_status::CONTINUING;
 		}
 	};
 
 	std::shared_ptr< runnable_concept > rcon;
+	runnable_context rctxt;
 
 public:
 	runnable()
@@ -107,15 +123,24 @@ public:
 	template<class Callback, class... Args>
 	runnable( Callback cb, Args&&... args )
 		: rcon( std::make_shared<runnable_model<Callback, Args...>>(
-			        cb, std::forward<Args>(args)...) )
+			        cb, std::forward<Args>(args)...) ),
+		  rctxt()
 	{}
+
+	void set_once()
+	{
+		rctxt.once = true;
+		rctxt.status = runnable_status::FINISHED;
+	}
 
 	runnable_status run()
 	{
 		if ( !rcon )
 			return runnable_status::INVALID;
 
-		return (*rcon)();
+		(*rcon)();
+
+		return rctxt.status;
 	}
 
 };

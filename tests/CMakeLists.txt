@@ -1,42 +1,22 @@
 project( pac-tests )
 
-set( test_srcs
-  signal-test.cpp
+macro( pac_test TEST_SRC_FILE )
+  message( "Creating Test: ${TEST_SRC_FILE}" )
+  string( REGEX REPLACE ".cpp" "" TEST_SRC_NAME ${TEST_SRC_FILE} )
+  add_executable(
+    ${TEST_SRC_NAME}
+    ${TEST_SRC_FILE}
+    )
+endmacro( pac_test )
+
+include_directories(
+  ${CMAKE_SOURCE_DIR}/lib
   )
 
 set( CMAKE_CXX_FLAGS
   ${CMAKE_CXX_FLAGS} "-std=c++11 -pthread -g -gdwarf-2"
   )
 
-add_executable( signal-test
-  ${test_srcs}
-  )
-
-include_directories(
-  ${CMAKE_SOURCE_DIR}/lib
-  )
-
-set( callback_test_srcs
-  callback-test.cpp
-  )
-
-add_executable( callback-test
-  ${callback_test_srcs}
-  )
-
-include_directories(
-  ${CMAKE_SOURCE_DIR}/lib
-  )
-
-set( context_test_srcs
-  context-test.cpp
-  )
-
-add_executable( context-test
-  ${context_test_srcs}
-  )
-
-include_directories(
-  ${CMAKE_SOURCE_DIR}/lib
-  )
-
+pac_test( signal-test.cpp )
+pac_test( callback-test.cpp )
+pac_test( context-test.cpp )

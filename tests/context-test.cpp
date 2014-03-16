@@ -18,6 +18,17 @@ int donk( int x )
 	return x + 1;
 }
 
+void basic_runnable_test()
+{
+	double x = 2.;
+	pac::callback<int(int)> cb( donk );
+	pac::runnable r( donk, x );
+
+	x = 35.;
+
+	std::cout << pac::as_string( r.run() ) << "\n";
+}
+
 struct player
 {
 	std::size_t id;
@@ -44,7 +55,7 @@ struct player
 	void init()
 	{
 		pac::callback<void()> cb = pac::callback<void()>( this, &player::running );
-		ctxt->add_runnable( std::make_shared< pac::runnable >(cb) );
+		ctxt->add_callback( cb );
 		toe.launch( ctxt, pac::toe::async );
 	}
 
@@ -89,17 +100,8 @@ struct player
 
 };
 
-
-int main(int argc, char *argv[])
+void football_test()
 {
-	double x = 2.;
-	pac::callback<int(int)> cb( donk );
-	pac::runnable r( donk, x );
-
-	x = 35.;
-
-	std::cout << pac::as_string( r.run() ) << "\n";
-
 	std::unique_ptr<player> p1 { new player( 1 ) };
 	std::unique_ptr<player> p2 { new player( 2, p1.get() ) };
 	std::unique_ptr<player> p3 { new player( 3, p2.get() ) };
@@ -111,6 +113,13 @@ int main(int argc, char *argv[])
 	p3->quit();
 	p2->quit();
 	p1->quit();
+}
+
+int main(int argc, char *argv[])
+{
+	basic_runnable_test();
+
+	football_test();
 
 	return 0;
 }

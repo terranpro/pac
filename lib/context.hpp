@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Mar 10 17:30:53 KST 2014
- * Last modified: Fri Mar 14 18:46:51 KST 2014
+ * Last modified: Sun Mar 16 17:34:23 KST 2014
  */
 
 #ifndef PAC_CONTEXT_HPP
@@ -84,6 +84,15 @@ public:
 		runnables.push_back( run );
 	}
 
+	template<class Callback, class... Args>
+	void add_callback( Callback callback, Args&&... args )
+	{
+		runnable_ptr run =
+			std::make_shared<runnable>( callback, std::forward<Args>(args)... );
+
+		add_runnable( run );
+	}
+
 	void reset()
 	{
 		runnables.clear();
@@ -99,7 +108,7 @@ public:
 		tid = std::this_thread::get_id();
 	}
 
-	thread_id get_thread_id()
+	thread_id get_thread_id() const
 	{
 		return tid;
 	}
@@ -236,6 +245,10 @@ public:
 	{
 		return thr.joinable();
 	}
+
+	void sleep_for( double time_s )
+	{}
+
 };
 
 struct toe_callback

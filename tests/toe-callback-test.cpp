@@ -52,8 +52,8 @@ struct root_controller
 		if ( !ctxt )
 			ctxt = context.get();
 
-		pac::toe_callback<void()> toecb( *ctxt, pac::callback< void() >(func) );
-		//pac::callback<void()> cb = static_cast< pac::callback<void()>& >( toecb );
+		pac::callback<void()> toecb =
+			pac::context_callback( *ctxt, pac::callback< void() >(func) );
 
 		return sigvoidfwd.connect( toecb );
 	}
@@ -61,8 +61,8 @@ struct root_controller
 	void start()
 	{
 		eng.connect();
-		std::this_thread::sleep_for( std::chrono::seconds(1) );
 		toe.launch( context );
+		//		std::this_thread::sleep_for( std::chrono::seconds(1) );
 	}
 };
 

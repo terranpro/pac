@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Mar 10 17:30:53 KST 2014
- * Last modified: Sun Mar 16 21:26:15 KST 2014
+ * Last modified: Tue Mar 18 00:40:32 KST 2014
  */
 
 #ifndef PAC_CONTEXT_HPP
@@ -260,35 +260,18 @@ public:
 
 };
 
-template<class Signature>
-struct toe_callback;
-
-template<class Ret, class... Args>
-struct toe_callback< Ret( Args... ) >
+template<class Ret, class... Args, class RetGenerator = Ret>
+auto context_callback( context& ctxt, pac::callback<Ret(Args...)> cb )
 {
-	context& ctxt;
-	callback<Ret( Args... )> cb;
-	callback<Ret( Args... )> stubcb;
+	auto stubfunc = [&ctxt, cb]( Args... args )
+		{
+			ctxt.add_callback( cb, std::forward<Args>(args)... );
+			return RetGenerator();
+		};
 
-	template<class Callback>
-	toe_callback( context& c, Callback callback )
-		: ctxt( c ), cb( callback ), stubcb()
-	{
-		stubcb = pac::callback<Ret( Args... )>( &toe_callback::operator(), this );
-	}
-
-	Ret operator()(Args... args)
-	{
-		ctxt.add_callback( cb, std::forward<Args>(args)... );
-		return Ret();
-	}
-
-	operator callback<Ret( Args... )>&()
-	{
-		return stubcb;
-	}
-
-};
+	pac::callback<Ret(Args...)> stubcb( stubfunc );
+	return stubcb;
+}
 
 } // namespace pac
 

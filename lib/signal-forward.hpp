@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Sun Mar 16 17:51:45 KST 2014
+ * Last modified: Mon Mar 17 19:11:22 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -322,6 +322,19 @@ public:
 	connection connect_slot( Slot&& slot )
 	{
 		return std::move( this->sig.connect_slot( std::forward<Slot>(slot) ) );
+	}
+
+	template<class Signature>
+	connection connect( pac::callback<Signature> cb )
+	{
+		using cb_type = decltype( cb );
+
+		forwarded_slot< cb_type,
+		                decltype( this->infunc ),
+		                decltype( this->outfunc ) >
+			fwdslot( std::move( cb ), this->infunc, this->outfunc );
+
+		return std::move( this->sig.connect_slot( fwdslot ) );
 	}
 
 	template<class Func>

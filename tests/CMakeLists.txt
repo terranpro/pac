@@ -20,3 +20,4 @@ set( CMAKE_CXX_FLAGS
 pac_test( signal-test.cpp )
 pac_test( callback-test.cpp )
 pac_test( context-test.cpp )
+pac_test( toe-callback-test.cpp )

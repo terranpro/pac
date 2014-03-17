@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Sun Mar 16 17:50:32 KST 2014
+ * Last modified: Mon Mar 17 13:49:55 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -74,6 +74,7 @@ struct connection
 	{
 		void *sig;
 		std::size_t id;
+		bool detached;
 		void *slot_;
 
 		virtual ~signal_concept()
@@ -96,12 +97,14 @@ struct connection
 		{
 			sig = s;
 			id = i;
+			detached = false;
 			slot_ = sl;
 		}
 		~signal_reference()
 		{
 			BARK;
-			disconnect();
+			if (!detached)
+				disconnect();
 		}
 		void disconnect();
 		void block();
@@ -115,6 +118,7 @@ struct connection
 			sig = nullptr;
 			id = -1;
 			slot_ = nullptr;
+			detached = false;
 		}
 
 		~null_signal()
@@ -147,6 +151,11 @@ struct connection
 	{
 		std::shared_ptr<signal_concept> empty;
 		std::swap( concept, empty );
+	}
+
+	void detach()
+	{
+		concept->detached = true;
 	}
 };
 

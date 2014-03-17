@@ -21,13 +21,14 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Mar 10 17:30:53 KST 2014
- * Last modified: Tue Mar 18 00:40:32 KST 2014
+ * Last modified: Tue Mar 18 01:33:17 KST 2014
  */
 
 #ifndef PAC_CONTEXT_HPP
 #define PAC_CONTEXT_HPP
 
 #include "runnable.hpp"
+#include "signal.hpp"
 
 #include <memory>
 #include <thread>
@@ -77,6 +78,11 @@ public:
 		runnables.pop_front();
 
 		return run;
+	}
+
+	std::size_t runnable_count()
+	{
+		return runnables.size();
 	}
 
 	void add_runnable( runnable_ptr run )
@@ -174,7 +180,11 @@ class toe
 			if ( quitme )
 				break;
 
-			inv.iterate();
+			auto res = inv.iterate();
+			if ( !res ) {
+				idle( [this](){ return ctxt->runnable_count() == 0; } );
+			}
+
 		}
 
 		handle_quit();
@@ -185,19 +195,37 @@ class toe
 		return ctxt->get_thread_id() == context::current_thread_id();
 	}
 
+	void idle()
+	{
+		std::unique_lock<std::mutex> lock( mutex );
+		cond.wait_for( lock, std::chrono::milliseconds(10) );
+	}
+
+	template<class Condition>
+	void idle( Condition cond )
+	{
+		while( cond() )
+			idle();
+	}
+
+	void wake()
+	{
+		cond.notify_all();
+	}
+
 	void handle_pause()
 	{
 		if ( !is_toe_context() )
 			return;
 
-		std::unique_lock<std::mutex> lock( mutex );
-		while( pauseme == true )
-			cond.wait( lock );
+		while( pauseme == true ) {
+			idle();
+		}
 	}
 
 	void handle_resume()
 	{
-		cond.notify_all();
+		wake();
 	}
 
 	void handle_quit()
@@ -258,14 +286,20 @@ public:
 			std::this_thread::sleep_for( std::chrono::microseconds( time_us ) );
 	}
 
+	template<class Callback, class... Args>
+	void add_callback( Callback callback, Args&&... args )
+	{
+		ctxt->add_callback( callback, std::forward<Args>(args)... );
+		wake();
+	}
 };
 
 template<class Ret, class... Args, class RetGenerator = Ret>
-auto context_callback( context& ctxt, pac::callback<Ret(Args...)> cb )
+auto toe_callback( toe& toe, pac::callback<Ret(Args...)> cb )
 {
-	auto stubfunc = [&ctxt, cb]( Args... args )
+	auto stubfunc = [&toe, cb]( Args... args )
 		{
-			ctxt.add_callback( cb, std::forward<Args>(args)... );
+			toe.add_callback( cb, std::forward<Args>(args)... );
 			return RetGenerator();
 		};
 

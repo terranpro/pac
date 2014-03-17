@@ -125,10 +125,11 @@ void toe_callback_test()
 		} );
 	std::shared_ptr<pac::context> ctxt = pac::context::create();
 	pac::signal<void( int )> sig;
-	pac::callback<void( int )> toecb = pac::context_callback( *ctxt, cb );
 	pac::toe toe;
 
 	toe.launch( ctxt, pac::toe::async );
+
+	pac::callback<void( int )> toecb = pac::toe_callback( toe, cb );
 
 	std::cout << std::this_thread::get_id() << ": START!\n";
 

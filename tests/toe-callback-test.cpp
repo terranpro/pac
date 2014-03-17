@@ -53,7 +53,7 @@ struct root_controller
 			ctxt = context.get();
 
 		pac::callback<void()> toecb =
-			pac::context_callback( *ctxt, pac::callback< void() >(func) );
+			pac::toe_callback( toe, pac::callback< void() >(func) );
 
 		return sigvoidfwd.connect( toecb );
 	}

@@ -259,5 +259,17 @@ int main(int, char *[])
 	pac::signal< int( void ) > s99;
 	pac::signal_forward< decltype( s99 ), int( void ) > s99fwd( s99 );
 
+	// signal connect using pac::callback
+	pac::signal< int( char, char, std::string ) > s66;
+	pac::callback< int( char, char, std::string ) > cb66 =
+		[]( char, char, std::string str )
+		{
+			std::cout << str << " : Bitchin'\n";
+			return 1;
+		};
+
+	auto con66 = s66.connect( cb66 );
+	s66.emit( 'c', '+', "c++" );
+
 	return 0;
 }

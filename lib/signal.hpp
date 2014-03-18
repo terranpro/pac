@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Mon Mar 17 13:49:55 KST 2014
+ * Last modified: Tue Mar 18 23:54:57 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -272,17 +272,23 @@ public:
 		return std::move( con );
 	}
 
+	template<class Signature>
+	connection connect( pac::callback<Signature> cb )
+	{
+		return connect_slot( slot_type(cb) );
+	}
+
 	template<class Func>
 	connection connect(Func func)
 	{
-		callback<Ret( Args... )> cb{ func };
+		callback_type cb{ func };
 		return connect_slot( slot_type( cb ) );
 	}
 
 	template<class T, class PMemFunc>
 	connection connect( PMemFunc mfunc, T&& obj )
 	{
-		auto cb = make_callback( mfunc, std::forward<T>(obj) );
+		callback_type cb{ mfunc, obj };
 		return connect_slot( slot_type( cb ) );
 	}
 

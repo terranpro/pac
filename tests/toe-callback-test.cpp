@@ -1,6 +1,8 @@
 #include <memory>
 #include <thread>
 
+#include <cassert>
+
 #include "context.hpp"
 #include "signal.hpp"
 #include "runnable.hpp"
@@ -9,17 +11,16 @@
 struct engine
 {
 	pac::signal< void(int) > sigconnected;
-	std::shared_ptr<pac::context> context;
 	pac::toe toe;
 
 	engine() :
-		sigconnected(), context( pac::context::create() ), toe()
+		sigconnected(), toe()
 	{}
 
 	void connect()
 	{
-		toe.launch( context, pac::toe::async );
-		context->add_callback( pac::callback<void()>( &engine::on_connected, this ) );
+		toe.launch( pac::toe::async );
+		toe.add_callback( pac::callback<void()>( &engine::on_connected, this ) );
 	}
 
 	void on_connected()
@@ -29,31 +30,47 @@ struct engine
 	}
 };
 
+struct connected_widget
+{
+	pac::signal<void()> connected_sig;
+
+	void on_engine_connected()
+	{
+		std::cout << "Connected!\n";
+		connected_sig.emit();
+	}
+};
+
 struct root_controller
 {
 	using source_signal = decltype( engine::sigconnected );
 
 	engine eng;
-	std::shared_ptr<pac::context> context;
 	pac::toe toe;
 	pac::signal_forward< source_signal, void(void) > sigvoidfwd;
+	connected_widget widget;
+	bool widget_said_hello = false;
 
 	root_controller()
-		: eng(), context( pac::context::create() ),
-		  sigvoidfwd( eng.sigconnected, void_inf, void_outf )
-	{}
+		: eng(),
+		  sigvoidfwd( eng.sigconnected, void_inf, void_outf ),
+		  widget()
+	{
+		widget.connected_sig.connect( [&](){ this->widget_said_hello = true; quit(); } ).detach();
+		notify_connected( std::bind(&connected_widget::on_engine_connected, &widget) ).detach();
+	}
 
 	static void void_inf(int) {}
 	static void void_outf() {}
 
 	template<class Func>
-	pac::connection notify_connected( Func func, pac::context *ctxt = nullptr  )
+	pac::connection notify_connected( Func func, pac::toe *con_toe = nullptr  )
 	{
-		if ( !ctxt )
-			ctxt = context.get();
+		if ( !con_toe )
+			con_toe = &toe;
 
 		pac::callback<void()> toecb =
-			pac::toe_callback( toe, pac::callback< void() >(func) );
+			pac::toe_callback( *con_toe, pac::callback< void() >(func) );
 
 		return sigvoidfwd.connect( toecb );
 	}
@@ -61,25 +78,26 @@ struct root_controller
 	void start()
 	{
 		eng.connect();
-		toe.launch( context );
-		//		std::this_thread::sleep_for( std::chrono::seconds(1) );
+		toe.launch();
+
+		assert( widget_said_hello );
+	}
+
+	void quit()
+	{
+		toe.quit();
 	}
 };
 
-void eng_on_connected()
-{
-	std::cout << "Connected!\n";
-}
-
 int main(int argc, char *argv[])
 {
-	root_controller rcon{};
-
-	rcon.notify_connected( eng_on_connected ).detach();
+	root_controller rcon;
 
 	rcon.start();
 
 	std::this_thread::sleep_for( std::chrono::seconds(1) );
+
+	std::cout << "Finished!\n";
 
 	return 0;
 }

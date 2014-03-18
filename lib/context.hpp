@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Mar 10 17:30:53 KST 2014
- * Last modified: Tue Mar 18 01:33:17 KST 2014
+ * Last modified: Tue Mar 18 17:49:53 KST 2014
  */
 
 #ifndef PAC_CONTEXT_HPP
@@ -182,7 +182,7 @@ class toe
 
 			auto res = inv.iterate();
 			if ( !res ) {
-				idle( [this](){ return ctxt->runnable_count() == 0; } );
+				idle( [&](){ return !quitme && ctxt->runnable_count() == 0; } );
 			}
 
 		}
@@ -239,8 +239,13 @@ public:
 
 public:
 	toe() :
-		ctxt{}, mutex{}, pauseme{false}, quitme{false},
-		cond{}, thr{}
+		ctxt{ context::create() }, mutex{}, pauseme{false},
+		quitme{false}, cond{}, thr{}
+	{}
+
+	toe( context_ptr c )
+		: ctxt{ c }, mutex{}, pauseme{false}, quitme{false},
+		  cond{}, thr{}
 	{}
 
 	~toe()
@@ -249,11 +254,14 @@ public:
 		join();
 	}
 
-	void launch( context_ptr c, launch_type t = sync )
+	void set_context( context_ptr c )
 	{
 		using std::swap;
 		swap( ctxt, c );
+	}
 
+	void launch( launch_type t = sync )
+	{
 		if ( t == sync )
 			run();
 		else if ( t == async )

@@ -33,22 +33,19 @@ void basic_runnable_test()
 struct player
 {
 	std::size_t id;
-	std::shared_ptr<pac::context> ctxt;
 	pac::toe toe;
 	std::atomic<bool> primary;
 	//pac::callback<void()> cb;
 	player *prev;
 
 	player( std::size_t i )
-		: id(i), ctxt{ pac::context::create() },
-		  toe{}, primary{false}, prev{nullptr}
+		: id(i), toe{}, primary{false}, prev{nullptr}
 	{
 		init();
 	}
 
 	player( std::size_t i, player *r, bool p = false )
-		: id(i), ctxt{ pac::context::create() },
-		  toe{}, primary{p}, prev{r}
+		: id(i), toe{}, primary{p}, prev{r}
 	{
 		init();
 	}
@@ -56,8 +53,8 @@ struct player
 	void init()
 	{
 		pac::callback<void()> cb = pac::callback<void()>( &player::running, this );
-		ctxt->add_callback( cb );
-		toe.launch( ctxt, pac::toe::async );
+		toe.add_callback( cb );
+		toe.launch( pac::toe::async );
 	}
 
 	void running()
@@ -123,11 +120,11 @@ void toe_callback_test()
 		{
 			std::cout << std::this_thread::get_id() << ": " << x+3 << "\n";
 		} );
-	std::shared_ptr<pac::context> ctxt = pac::context::create();
+
 	pac::signal<void( int )> sig;
 	pac::toe toe;
 
-	toe.launch( ctxt, pac::toe::async );
+	toe.launch( pac::toe::async );
 
 	pac::callback<void( int )> toecb = pac::toe_callback( toe, cb );
 

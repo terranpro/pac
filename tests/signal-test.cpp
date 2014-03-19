@@ -271,5 +271,18 @@ int main(int, char *[])
 	auto con66 = s66.connect( cb66 );
 	s66.emit( 'c', '+', "c++" );
 
+	// multi signal forward test
+	pac::signal< void() > srcsig;
+	pac::signal_forward< decltype(srcsig), void() > fwd1( srcsig );
+	pac::signal_forward< decltype(srcsig), void() > fwd2( fwd1 );
+	pac::signal_forward< decltype(srcsig), void() > fwd3( fwd2 );
+	pac::signal_forward< decltype(srcsig), void() > fwd4( fwd3 );
+
+	pac::callback< void() > getemcb = []() { std::cout << "GET EM!\n"; };
+	auto getemcon = fwd4.connect( getemcb );
+	fwd2.connect(getemcb).detach();
+
+	srcsig.emit();
+
 	return 0;
 }

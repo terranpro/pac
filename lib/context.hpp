@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Mar 10 17:30:53 KST 2014
- * Last modified: Tue Mar 18 17:49:53 KST 2014
+ * Last modified: Wed Mar 19 16:51:50 KST 2014
  */
 
 #ifndef PAC_CONTEXT_HPP
@@ -138,17 +138,22 @@ struct context_invoker
 		ctxt->set_thread_id();
 	}
 
-	bool iterate()
+	bool iterate(std::mutex& mutex)
 	{
+		std::unique_lock<std::mutex> lock( mutex );
 		auto nextrun = ctxt->next_runnable();
+		lock.unlock();
 
 		if (!nextrun)
 			return false;
 
 		auto res = nextrun->run();
 
-		if ( res == runnable_status::CONTINUING )
+		if ( res == runnable_status::CONTINUING ) {
+			lock.lock();
 			ctxt->add_runnable( nextrun );
+			lock.unlock();
+		}
 
 		return true;
 	}
@@ -170,9 +175,7 @@ class toe
 	{
 		context_invoker inv( ctxt );
 
-		for ( bool finished = false;
-		      !finished;
-		    ) {
+		for ( bool finished = false; !finished; ) {
 
 			if ( pauseme )
 				handle_pause();
@@ -180,7 +183,7 @@ class toe
 			if ( quitme )
 				break;
 
-			auto res = inv.iterate();
+			auto res = inv.iterate(mutex);
 			if ( !res ) {
 				idle( [&](){ return !quitme && ctxt->runnable_count() == 0; } );
 			}
@@ -210,6 +213,7 @@ class toe
 
 	void wake()
 	{
+		std::lock_guard<std::mutex> lock( mutex );
 		cond.notify_all();
 	}
 
@@ -297,7 +301,10 @@ public:
 	template<class Callback, class... Args>
 	void add_callback( Callback callback, Args&&... args )
 	{
-		ctxt->add_callback( callback, std::forward<Args>(args)... );
+		{
+			std::lock_guard<std::mutex> lock( mutex );
+			ctxt->add_callback( callback, std::forward<Args>(args)... );
+		}
 		wake();
 	}
 };

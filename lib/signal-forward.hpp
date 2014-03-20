@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Mon Mar 17 19:11:22 KST 2014
+ * Last modified: Thu Mar 20 14:32:15 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -117,8 +117,7 @@ struct forward_invoker<void>
 		return std::forward<OutFunc>(outfunc)();
 	}
 
-	//template<class... InArgs>
-	static void default_infunc()//InArgs&&... inargs )
+	static void default_infunc()
 	{
 		return;
 	}
@@ -182,42 +181,6 @@ struct forwarded_slot<
 	forwarded_slot( forwarded_slot&& ) = delete;
 };
 
-template<class Signal, class InFunc, class OutFunc>
-class signal_catcher;
-
-template<class Ret, class... Args, class InFunc, class OutFunc>
-class signal_catcher< signal< Ret(Args...)>, InFunc, OutFunc>
-{
-	connection con;
-	InFunc infunc;
-	OutFunc outfunc;
-
-	auto operator()(Args&&... args)
-		-> decltype( outfunc( infunc( std::forward<Args>(args)... ) ) )
-	{
-		return outfunc( infunc( std::forward<Args>(args)... ) );
-	}
-
-public:
-	signal_catcher( signal<Ret(Args...)>& s, InFunc inf, OutFunc outf )
-		: infunc(inf), outfunc(outf)
-	{
-		con = s.connect( &signal_catcher::operator(), this );
-	}
-
-};
-
-template<class... InArgs, class TFunc, class... OutArgs>
-std::tuple<OutArgs...> transform( std::tuple<InArgs...> in_args,
-                                  TFunc tfunc )
-{
-	return tfunc( in_args );
-}
-
-template<class UserRet, class OutRet>
-OutRet out_invoker( UserRet r )
-{	return r; }
-
 template<class OrigSignal, class NewSignalSignature>
 class signal_forward_base;
 
@@ -230,29 +193,17 @@ class signal_forward_base<
 {
 protected:
 	using SignalType = signal<OrigRet(OrigArgs...)>;
+	using InvokerType = forward_invoker<std::tuple<Args...>,Ret>;
 
 	SignalType& sig;
 	callback< std::tuple<Args...>( OrigArgs... ) > infunc;
 	callback< OrigRet( Ret ) > outfunc;
 
-	using DefaultOutInvoker = decltype( out_invoker<Ret,OrigRet> );
-
 	signal_forward_base( SignalType& s )
 		: sig( s ),
-		  infunc( &forward_invoker<std::tuple<Args...>,Ret>::template default_infunc<OrigArgs...>),
-		  outfunc( &forward_invoker<std::tuple<Args...>,Ret>::template default_outfunc<OrigRet, Ret> )
-	{
-		// infunc = []( OrigArgs... args )
-		// 	{
-		// 		return forward_invoker<std::tuple<Args...>,Ret>::default_infunc( args... );
-		// 	};
-
-		// //outfunc = []( Ret r ) { return out_invoker<Ret, OrigRet>( r ); };
-		// outfunc = []( Ret r )
-		// 	{
-		// 		return forward_invoker<std::tuple<Args...>,Ret>::template default_outfunc<Ret>( r );
-		// 	};
-	}
+		  infunc( &InvokerType::template default_infunc<OrigArgs...>),
+		  outfunc( &InvokerType::template default_outfunc<OrigRet, Ret> )
+	{}
 
 	template<class InFunc, class OutFunc>
 	signal_forward_base( SignalType& s, InFunc inf, OutFunc outf )

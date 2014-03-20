@@ -119,10 +119,6 @@ int main(int, char *[])
 	auto infunc = std::bind( []( int in ) { return in != 0; }, std::placeholders::_1 );
 	//	std::function<int(bool)> outfunc = []( bool in ) { return in ? 6969 : -1069; };
 	auto outfunc = []( bool in ) { return in ? 6969 : -1069; };
-	signal_catcher< decltype( s.sigadd ),
-	                decltype(infunc),
-	                decltype(outfunc) >
-		catcher( s.sigadd, infunc, outfunc );
 
 	for ( auto r : s.Add( 5 ) )
 		std::cout << "r = " << r << "\n";

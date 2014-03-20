@@ -30,14 +30,44 @@ struct engine
 	}
 };
 
+struct connected_controller;
+struct connected_widget;
+struct root_controller;
+
 struct connected_widget
 {
+	connected_controller& con;
 	pac::signal<void()> connected_sig;
+
+	connected_widget( connected_controller& c );
 
 	void on_engine_connected()
 	{
 		std::cout << "Connected!\n";
 		connected_sig.emit();
+	}
+};
+
+struct connected_controller
+{
+	root_controller& parent;
+	pac::toe& toe;
+	pac::signal_forward< pac::signal<void(int)>, void() > sigfwd;
+	connected_widget widget;
+	pac::signal_forward< pac::signal<void()>, void() > sigfwdwidget;
+
+	connected_controller( root_controller&p, pac::toe& t );
+
+	template<class Func>
+	pac::connection notify_connected( Func func, pac::toe *con_toe = nullptr  )
+	{
+		if ( !con_toe )
+			con_toe = &toe;
+
+		pac::callback<void()> toecb =
+			pac::toe_callback( *con_toe, pac::callback< void() >(func) );
+
+		return sigfwd.connect( toecb );
 	}
 };
 
@@ -47,17 +77,17 @@ struct root_controller
 
 	engine eng;
 	pac::toe toe;
-	pac::signal_forward< source_signal, void(void) > sigvoidfwd;
-	connected_widget widget;
+	pac::signal_forward< source_signal, void() > sigvoidfwd;
+	connected_controller con;
 	bool widget_said_hello = false;
 
 	root_controller()
 		: eng(),
 		  sigvoidfwd( eng.sigconnected, void_inf, void_outf ),
-		  widget()
+		  con(*this, toe)
 	{
-		widget.connected_sig.connect( [&](){ this->widget_said_hello = true; quit(); } ).detach();
-		notify_connected( std::bind(&connected_widget::on_engine_connected, &widget) ).detach();
+		con.sigfwdwidget.connect( [&](){ this->widget_said_hello = true; quit(); } ).detach();
+		//notify_connected( std::bind(&connected_widget::on_engine_connected, &widget) ).detach();
 	}
 
 	static void void_inf(int) {}
@@ -88,6 +118,17 @@ struct root_controller
 		toe.quit();
 	}
 };
+
+connected_widget::connected_widget( connected_controller& c )
+	: con(c)
+{
+	con.notify_connected( std::bind( &connected_widget::on_engine_connected, this ) ).detach();
+}
+
+connected_controller::connected_controller( root_controller&p, pac::toe& t )
+	: parent( p ), toe( t ), sigfwd( parent.sigvoidfwd ), widget( *this ), sigfwdwidget( widget.connected_sig )
+{}
+
 
 int main(int argc, char *argv[])
 {

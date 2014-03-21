@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Tue Mar 18 23:54:57 KST 2014
+ * Last modified: Fri Mar 21 20:42:54 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -184,9 +184,8 @@ struct invoker<Ret(Args...)>
 	using return_type = Ret;
 	using results_type = std::vector<return_type>;
 
-	template<class SlotIt>
-	results_type dispatch(SlotIt beg, SlotIt end,
-	                      Args... args)
+	template<class SlotIt, class... A>
+	results_type dispatch(SlotIt beg, SlotIt end, A&&... args)
 	{
 		results_type results;
 		auto it = beg;
@@ -197,7 +196,7 @@ struct invoker<Ret(Args...)>
 			BARK;
 
 			results.push_back(
-				std::move( it->second->callback( std::forward<Args>(args)... ) ) );
+				std::move( it->second->callback( std::forward<A>(args)... ) ) );
 		}
 
 		return std::move( results );
@@ -213,9 +212,8 @@ struct invoker<void(Args...)>
 	using callback_type = callback<void( Args... )>;
 	using slot_type = slot<callback_type>;
 
-	template<class SlotIt>
-	return_type dispatch(SlotIt beg, SlotIt end,
-	                     Args... args)
+	template<class SlotIt, class... A>
+	return_type dispatch(SlotIt beg, SlotIt end, A&&... args)
 	{
 		auto it = beg;
 
@@ -224,7 +222,7 @@ struct invoker<void(Args...)>
 				continue;
 			BARK;
 
-			it->second->callback( std::forward<Args>(args)... );
+			it->second->callback( std::forward<A>(args)... );
 		}
 
 	}
@@ -312,7 +310,8 @@ public:
 		BARK_THIS;
 	}
 
-	results_type emit(Args... args)
+	template<class... A>
+	results_type emit(A&&... args)
 	{
 		invoker<Ret(Args...)> inv;
 
@@ -322,7 +321,7 @@ public:
 		auto it = slots.begin();
 		auto end = slots.end();
 
-		return inv.dispatch( it, end, std::forward<Args>(args)... );
+		return inv.dispatch( it, end, std::forward<A>(args)... );
 	}
 
 private:

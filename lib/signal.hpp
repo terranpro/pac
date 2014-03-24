@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Fri Mar 21 20:42:54 KST 2014
+ * Last modified: Mon Mar 24 14:17:03 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -261,8 +261,7 @@ public:
 	{
 		BARK;
 
-		slot_type *slotcopy = new SlotType( slot );
-		auto slotptr = std::shared_ptr<slot_type>( slotcopy );
+		auto slotptr = std::make_shared<SlotType>( slot );
 		connection con( this, next_id, slotptr.get() );
 
 		slots.insert( std::make_pair(next_id, slotptr) );

@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:15:18 KST 2014
- * Last modified: Sun Mar 16 17:57:52 KST 2014
+ * Last modified: Mon Mar 24 17:47:21 KST 2014
  */
 
 #ifndef CALLBACK_HPP
@@ -80,9 +80,6 @@ class callback< Ret(Args...) >
 	};
 
 	std::shared_ptr<concept> con;
-
-public:
-	using return_type = Ret;
 
 public:
 	~callback()

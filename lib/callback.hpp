@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:15:18 KST 2014
- * Last modified: Mon Mar 24 17:47:21 KST 2014
+ * Last modified: Tue Mar 25 00:19:51 KST 2014
  */
 
 #ifndef CALLBACK_HPP
@@ -41,8 +41,7 @@ class callback< Ret(Args...) >
 {
 	struct concept
 	{
-		virtual ~concept()
-		{}
+		virtual ~concept() {}
 		virtual Ret operator()(Args... args) = 0;
 	};
 

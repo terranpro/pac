@@ -137,29 +137,9 @@ int main(int, char *[])
 	pac::callback< int( int ) > outf =
 		[]( int out ) { BARK; return out - 1; };
 
-	pac::forwarded_slot< decltype( mycb ), decltype( inf ), decltype( outf ) >
-		fslot( mycb, inf, outf );
-
-	auto *castslot =
-		dynamic_cast<pac::slot< callback<int( int )> > *>( &fslot );
-
-	assert( castslot );
-
-	auto fwdslotres = castslot->callback( testn1 );
-	auto calc_expected =
-		[]( int in ) { return ( in + 3 ) * ( in + 5 ) + 137 - 1; };
-
-	auto expected_result = calc_expected( testn1 );
-
-	assert( fwdslotres == expected_result );
-
-	std::cout <<  fwdslotres << " == " << expected_result << "\n";
-
 	// forwarded signal test
 	auto testn2 = 5;
 	pac::signal< int( int ) > origsig;
-
-	auto savemecon = origsig.connect_slot( *castslot );
 
 	for ( auto r : origsig.emit( testn2 ) )
 		std::cout << "s = " << r << "\n";
@@ -167,8 +147,6 @@ int main(int, char *[])
 	pac::signal_forward< decltype( origsig ),
 	                     int( int,int ) >
 		sigf( origsig, inf, outf );
-
-	auto sigfcon2 = sigf.connect_slot( *castslot );
 
 	auto sigfcon = sigf.connect( sigfwd_cb );
 
@@ -178,12 +156,13 @@ int main(int, char *[])
 			return std::accumulate( con.begin(), con.end(), 0 );
 		}(origsig.emit( testn2 ));
 
-	auto expected_rr = 2 * calc_expected( testn2 ) + sigfwd_cb( testn2 + 3, testn2 + 5 ) - 1;
+	auto expected_rr = sigfwd_cb( testn2 + 3, testn2 + 5 ) - 1;
 
 	std::cout << rr << " ==? " << expected_rr << "\n";
 
 	assert( rr == expected_rr );
 
+	auto sigfcon2 = sigf.connect( sigfwd_cb );
 	{
 		pac::connection_block block
 		{ sigfcon };
@@ -193,9 +172,8 @@ int main(int, char *[])
 			{
 				return std::accumulate( con.begin(), con.end(), 0 );
 			}(origsig.emit( testn2 ));
-		auto expected_rr2 = 2 * calc_expected( testn2 );
 
-		assert( rr2 == expected_rr2 );
+		assert( rr2 == expected_rr );
 	}
 
 	sigfcon.disconnect();
@@ -222,7 +200,7 @@ int main(int, char *[])
 		}( origsig.emit( testn2 ) );
 
 	auto expected_rr3 =
-		expected_rr + sigfwd2_cb( testn2 ) - ( sigfwd_cb( testn2 + 3, testn2 + 5 ) - 1 );
+		expected_rr + sigfwd2_cb( testn2 );
 
 	assert( rr3 == expected_rr3 );
 

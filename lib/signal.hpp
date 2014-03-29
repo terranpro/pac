@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Mon Mar 24 14:17:03 KST 2014
+ * Last modified: Sun Mar 30 02:31:51 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -199,7 +199,7 @@ struct invoker<Ret(Args...)>
 				std::move( it->second->callback( std::forward<A>(args)... ) ) );
 		}
 
-		return std::move( results );
+		return results;
 	}
 };
 
@@ -250,8 +250,8 @@ public:
 	~signal()
 	{}
 
-	// signal(signal const&) = default;
-	// signal& operator=(signal const&) = default;
+	signal(signal const&) = delete;
+	signal& operator=(signal const&) = delete;
 
 	signal(signal&&) = default;
 	signal& operator=(signal&&) = default;
@@ -266,7 +266,7 @@ public:
 
 		slots.insert( std::make_pair(next_id, slotptr) );
 		++next_id;
-		return std::move( con );
+		return con;
 	}
 
 	template<class Signature>

@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Thu Mar 20 14:32:15 KST 2014
+ * Last modified: Sun Mar 30 03:19:25 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -168,6 +168,26 @@ struct forwarded_slot<
 		return cb;
 	}
 
+	template<class CB, class FIn, class FOut>
+	static auto generate_callback(CB cb,
+	                              FIn fin,
+	                              FOut fout)
+	{
+		pac::callback< OutRet( InArgs... ) > fwdcb =
+			[cb, fin, fout](InArgs... args)
+			{
+				auto lcb = CB(cb);
+				auto lfin = FIn(fin);
+				auto lfout = FOut(fout);
+
+				forward_invoker< InRet, OutArgs... > invoker;
+
+				return invoker( lfin, lcb, lfout, args... );
+			};
+
+		return fwdcb;
+	}
+
 	forwarded_slot( forwarded_slot const& other )
 		: slot< callback< OutRet( InArgs... ) > >( other )
 	{
@@ -179,6 +199,31 @@ struct forwarded_slot<
 	}
 
 	forwarded_slot( forwarded_slot&& ) = delete;
+};
+
+template<class CB>
+struct callback_gen;
+
+template<class Ret, class... Args>
+struct callback_gen<Ret(Args...)>
+{
+	using type = pac::callback<Ret(Args...)>;
+};
+
+template< template<class...> class Func,
+          class Ret, class... Args >
+struct callback_gen< Func<Ret(Args...)> >
+	: callback_gen<Ret(Args...)>
+{};
+
+template<class CB1, class CB2>
+struct fwdcallback_gen;
+
+template<class R1, class... A1,
+         class R2, class... A2>
+struct fwdcallback_gen<R1(A1...), R2(A2...)>
+{
+	using type = pac::callback< R2(A1...) >;
 };
 
 template<class OrigSignal, class NewSignalSignature>
@@ -193,6 +238,7 @@ class signal_forward_base<
 {
 protected:
 	using SignalType = signal<OrigRet(OrigArgs...)>;
+	using CallbackType = pac::callback<Ret( Args... )>;
 	using InvokerType = forward_invoker<std::tuple<Args...>,Ret>;
 
 	SignalType& sig;
@@ -220,6 +266,7 @@ class signal_forward_base<
 {
 protected:
 	using SignalType = signal<OrigRet(OrigArgs...)>;
+	using CallbackType = pac::callback<void( Args... )> ;
 
 	SignalType& sig;
 	callback< void( OrigArgs... ) > infunc;
@@ -238,21 +285,15 @@ protected:
 };
 
 template<class OrigSignal, class NewSignalSignature>
-class signal_forward;
-
-template<class OrigRet, class... OrigArgs,
-         class Ret, class... Args>
-class signal_forward<
-         signal<OrigRet(OrigArgs...)>,
-         Ret(Args...)
-        >
+class signal_forward
 	: public signal_forward_base<
-         signal<OrigRet( OrigArgs... )>,
-         Ret( Args... )
+         OrigSignal,
+         NewSignalSignature
         >
 {
-	using ParentType = signal_forward_base<signal<OrigRet( OrigArgs... )>,
-	                                       Ret( Args... )>;
+	using ParentType = signal_forward_base< OrigSignal,
+	                                        NewSignalSignature
+	                                      >;
 
 	using SignalType = typename ParentType::SignalType;
 
@@ -269,38 +310,51 @@ public:
 		: ParentType( s, inf, outf )
 	{}
 
-	template<class Slot>
-	connection connect_slot( Slot&& slot )
-	{
-		return std::move( this->sig.connect_slot( std::forward<Slot>(slot) ) );
-	}
+	// template<class Slot>
+	// connection connect_slot( Slot&& slot )
+	// {
+	// 	return std::move( this->sig.connect_slot( std::forward<Slot>(slot) ) );
+	// }
 
 	template<class Signature>
 	connection connect( pac::callback<Signature> cb )
 	{
 		using cb_type = decltype( cb );
 
-		forwarded_slot< cb_type,
-		                decltype( this->infunc ),
-		                decltype( this->outfunc ) >
-			fwdslot( std::move( cb ), this->infunc, this->outfunc );
+		// forwarded_slot< cb_type,
+		//                 decltype( this->infunc ),
+		//                 decltype( this->outfunc ) >
+		// 	fwdslot( std::move( cb ), this->infunc, this->outfunc );
 
-		return std::move( this->sig.connect_slot( fwdslot ) );
+		auto fwdcb =
+			forwarded_slot< cb_type,
+			                decltype( this->infunc ),
+			decltype( this->outfunc ) >
+			::generate_callback( std::move(cb), this->infunc, this->outfunc );
+
+		return this->sig.connect( fwdcb );
 	}
 
 	template<class Func>
 	connection connect( Func&& func )
 	{
-		//auto cb = make_callback( std::forward<Func>(func) );
-		pac::callback<Ret( Args... )> cb = func;
+		typename ParentType::CallbackType cb = func;
 		using cb_type = decltype( cb );
 
-		forwarded_slot< cb_type,
-		                decltype( this->infunc ),
-		                decltype( this->outfunc ) >
-			fwdslot( std::move( cb ), this->infunc, this->outfunc );
+		// forwarded_slot< cb_type,
+		//                 decltype( this->infunc ),
+		//                 decltype( this->outfunc ) >
+		// 	fwdslot( std::move( cb ), this->infunc, this->outfunc );
 
-		return std::move( this->sig.connect_slot( fwdslot ) );
+		// return this->sig.connect_slot( fwdslot );
+
+		auto fwdcb =
+			forwarded_slot< cb_type,
+			                decltype( this->infunc ),
+			decltype( this->outfunc ) >
+			::generate_callback( std::move(cb), this->infunc, this->outfunc );
+
+		return this->sig.connect( fwdcb );
 	}
 
 	template<class PMemFunc, class T>
@@ -309,12 +363,20 @@ public:
 		auto cb = make_callback( obj, mfunc );
 		using cb_type = decltype( cb );
 
-		forwarded_slot< cb_type,
-		                decltype( this->infunc ),
-		                decltype( this->outfunc ) >
-			fwdslot( std::move( cb ), this->infunc, this->outfunc );
+		// forwarded_slot< cb_type,
+		//                 decltype( this->infunc ),
+		//                 decltype( this->outfunc ) >
+		// 	fwdslot( std::move( cb ), this->infunc, this->outfunc );
 
-		return std::move( this->sig.connect_slot( fwdslot ) );
+		// return std::move( this->sig.connect_slot( fwdslot ) );
+
+		auto fwdcb =
+			forwarded_slot< cb_type,
+			                decltype( this->infunc ),
+			decltype( this->outfunc ) >
+			::generate_callback( std::move(cb), this->infunc, this->outfunc );
+
+		return this->sig.connect( fwdcb );
 	}
 
 // 	void disconnect( connection& con )

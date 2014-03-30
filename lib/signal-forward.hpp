@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Sun Mar 30 03:19:25 KST 2014
+ * Last modified: Mon Mar 31 00:37:56 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -57,9 +57,25 @@ struct forward_invoker
 	}
 
 	template<class OR, class R>
+	struct out_helper
+	{
+		static OR help( R ret )
+		{
+			return ret;
+		}
+	};
+
+	template<class R>
+	struct out_helper<void, R>
+	{
+		static void help( R )
+		{}
+	};
+
+	template<class OR, class R>
 	static OR default_outfunc( R ret )
 	{
-		return ret;
+		return out_helper<OR, R>::help( ret );
 	}
 };
 
@@ -182,6 +198,7 @@ struct forwarded_slot<
 
 				forward_invoker< InRet, OutArgs... > invoker;
 
+				//std::cout << "Callback Firing !\n";
 				return invoker( lfin, lcb, lfout, args... );
 			};
 
@@ -229,15 +246,16 @@ struct fwdcallback_gen<R1(A1...), R2(A2...)>
 template<class OrigSignal, class NewSignalSignature>
 class signal_forward_base;
 
-template<class OrigRet, class... OrigArgs,
+template<template<class...> class Signal,
+         class OrigRet, class... OrigArgs,
          class Ret, class... Args>
 class signal_forward_base<
-         signal<OrigRet(OrigArgs...)>,
+         Signal<OrigRet(OrigArgs...)>,
          Ret(Args...)
         >
 {
 protected:
-	using SignalType = signal<OrigRet(OrigArgs...)>;
+	using SignalType = Signal<OrigRet(OrigArgs...)>;
 	using CallbackType = pac::callback<Ret( Args... )>;
 	using InvokerType = forward_invoker<std::tuple<Args...>,Ret>;
 
@@ -257,15 +275,16 @@ protected:
 	{}
 };
 
-template<class OrigRet, class... OrigArgs,
+template<template<class...> class Signal,
+         class OrigRet, class... OrigArgs,
          class... Args>
 class signal_forward_base<
-         signal<OrigRet(OrigArgs...)>,
+         Signal<OrigRet(OrigArgs...)>,
          void(Args...)
         >
 {
 protected:
-	using SignalType = signal<OrigRet(OrigArgs...)>;
+	using SignalType = Signal<OrigRet(OrigArgs...)>;
 	using CallbackType = pac::callback<void( Args... )> ;
 
 	SignalType& sig;
@@ -276,6 +295,146 @@ protected:
 		: sig( s ),
 		  infunc( &forward_invoker<void>::default_infunc ),
 		  outfunc( &forward_invoker<void>::default_outfunc<OrigRet> )
+	{}
+
+	template<class InFunc, class OutFunc>
+	signal_forward_base( SignalType& s, InFunc inf, OutFunc outf )
+		: sig( s ), infunc( inf ), outfunc( outf )
+	{}
+};
+
+template<class...>
+struct sigfwd_gen;
+
+template<template<class...> class Signal,
+         class OrigRet, class... OrigArgs,
+         class Ret, class... Args>
+struct sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         Ret(Args...)
+        >
+{
+	using SignalType = Signal<OrigRet(OrigArgs...)>;
+	using CallbackType = pac::callback<Ret( Args... )>;
+	using InvokerType = forward_invoker<std::tuple<Args...>,Ret>;
+
+	using InFuncCallbackType  = pac::callback< std::tuple<Args...>( OrigArgs... ) >;
+	using OutFuncCallbackType = pac::callback< OrigRet( Ret ) >;
+
+	static InFuncCallbackType DefaultInFunc;
+	static OutFuncCallbackType DefaultOutFunc;
+};
+
+template<template<class...> class Signal,
+         class OrigRet, class... OrigArgs,
+         class Ret, class... Args>
+typename sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         Ret(Args...)
+        >::InFuncCallbackType
+sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         Ret(Args...)
+        >::DefaultInFunc = &InvokerType::template default_infunc<OrigArgs...>;
+
+template<template<class...> class Signal,
+         class OrigRet, class... OrigArgs,
+         class Ret, class... Args>
+typename sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         Ret(Args...)
+        >::OutFuncCallbackType
+sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         Ret(Args...)
+        >::DefaultOutFunc = &InvokerType::template default_outfunc<OrigRet, Ret>;
+
+template<template<class...> class Signal,
+         class OrigRet, class... OrigArgs,
+         class... Args>
+struct sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         void(Args...)
+        >
+{
+	using SignalType = Signal<OrigRet(OrigArgs...)>;
+	using CallbackType = pac::callback<void( Args... )>;
+	using InvokerType = forward_invoker<void>;
+
+	using InFuncCallbackType  = pac::callback< void( OrigArgs... ) >;
+	using OutFuncCallbackType = pac::callback< OrigRet( ) >;
+
+	// static InFuncCallbackType DefaultInFunc =
+	// 	InFuncCallbackType( &InvokerType::default_infunc );
+
+	// static OutFuncCallbackType DefaultOutFunc =
+	// 	&InvokerType::template default_outfunc<OrigRet>;
+
+	static InFuncCallbackType DefaultInFunc;
+
+	static OutFuncCallbackType DefaultOutFunc;
+
+};
+
+template<template<class...> class Signal,
+         class OrigRet, class... OrigArgs,
+         class... Args>
+typename sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         void(Args...)
+        >::InFuncCallbackType sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         void(Args...)
+        >::DefaultInFunc = &InvokerType::default_infunc;
+
+template<template<class...> class Signal,
+         class OrigRet, class... OrigArgs,
+         class... Args>
+typename sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         void(Args...)
+        >::OutFuncCallbackType sigfwd_gen<
+         Signal<OrigRet(OrigArgs...)>,
+         void(Args...)
+        >::DefaultOutFunc = &InvokerType::template default_outfunc<OrigRet>;
+
+template<template<class...> class SignalFwd,
+         class Sig,
+         class... Other,
+         class... Etc>
+struct sigfwd_gen< SignalFwd< Sig, Other... >, Etc... >
+	: public sigfwd_gen< Sig, Etc... >
+{
+	using Parent = sigfwd_gen< Sig, Etc... >;
+	using SignalType = SignalFwd< Sig, Other... >;
+	using InvokerType = typename Parent::InvokerType;
+};
+
+template<template<class...> class SignalFwd,
+         class... Signal,
+         class... Etc
+        >
+class signal_forward_base<
+         SignalFwd<Signal...>,
+         Etc...
+        >
+{
+public:
+	using Gen = sigfwd_gen< SignalFwd<Signal...>, Etc... >;
+
+	using SignalType = typename Gen::SignalType;
+	using CallbackType = typename Gen::CallbackType;
+
+	using InvokerType = typename Gen::InvokerType;
+
+	SignalType& sig;
+	typename Gen::InFuncCallbackType infunc;
+	typename Gen::OutFuncCallbackType outfunc;
+
+	signal_forward_base( SignalType& s )
+		: sig( s ),
+		  infunc( Gen::DefaultInFunc ),
+		  outfunc( Gen::DefaultOutFunc )
 	{}
 
 	template<class InFunc, class OutFunc>

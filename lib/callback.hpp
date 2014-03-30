@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:15:18 KST 2014
- * Last modified: Tue Mar 25 00:19:51 KST 2014
+ * Last modified: Sun Mar 30 21:49:13 KST 2014
  */
 
 #ifndef CALLBACK_HPP
@@ -81,8 +81,7 @@ class callback< Ret(Args...) >
 	std::shared_ptr<concept> con;
 
 public:
-	~callback()
-	{}
+	~callback() = default;
 
 	callback()
 		: con( nullptr )

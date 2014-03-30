@@ -248,15 +248,19 @@ int main(int, char *[])
 	// multi signal forward test
 	pac::signal< void() > srcsig;
 	pac::signal_forward< decltype(srcsig), void() > fwd1( srcsig );
-	pac::signal_forward< decltype(srcsig), void() > fwd2( fwd1 );
-	pac::signal_forward< decltype(srcsig), void() > fwd3( fwd2 );
-	pac::signal_forward< decltype(srcsig), void() > fwd4( fwd3 );
+	pac::signal_forward< decltype(fwd1), void() > fwd2( fwd1 );
+	pac::signal_forward< decltype(fwd2), void() > fwd3( fwd2 );
+	pac::signal_forward< decltype(fwd3), void() > fwd4( fwd3 );
 
 	pac::callback< void() > getemcb = []() { std::cout << "GET EM!\n"; };
 	auto getemcon = fwd4.connect( getemcb );
 	fwd2.connect(getemcb).detach();
 
-	srcsig.emit();
+	pac::signal_forward< decltype(fwd4), int() > fwd5( fwd4 );
+	pac::callback< int() > getitcb = []() { std::cout << "GET IT!\n"; return 99; };
+	fwd5.connect(getitcb).detach();
+
+	srcsig.emit( );
 
 	return 0;
 }

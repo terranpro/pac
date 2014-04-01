@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Mar 10 17:30:53 KST 2014
- * Last modified: Wed Mar 19 16:51:50 KST 2014
+ * Last modified: Tue Apr 01 23:02:03 KST 2014
  */
 
 #ifndef PAC_CONTEXT_HPP
@@ -160,10 +160,12 @@ struct context_invoker
 
 };
 
-class toe
+class toe_impl
 {
+public:
 	using context_ptr = context::context_ptr;
 
+private:
 	context_ptr ctxt;
 	std::mutex mutex;
 	std::atomic<bool> pauseme;
@@ -242,22 +244,23 @@ public:
 	};
 
 public:
-	toe() :
+	toe_impl() :
 		ctxt{ context::create() }, mutex{}, pauseme{false},
 		quitme{false}, cond{}, thr{}
 	{}
 
-	toe( context_ptr c )
+	toe_impl( context_ptr c )
 		: ctxt{ c }, mutex{}, pauseme{false}, quitme{false},
 		  cond{}, thr{}
 	{}
 
-	~toe()
+	~toe_impl()
 	{
 		quit();
 		join();
 	}
 
+public:
 	void set_context( context_ptr c )
 	{
 		using std::swap;
@@ -269,7 +272,7 @@ public:
 		if ( t == sync )
 			run();
 		else if ( t == async )
-			thr = std::thread( &toe::run, this );
+			thr = std::thread( &toe_impl::run, this );
 	}
 
 	void pause()
@@ -307,6 +310,74 @@ public:
 		}
 		wake();
 	}
+
+};
+
+class toe
+{
+	std::shared_ptr<toe_impl> impl;
+
+public:
+	using context_ptr = toe_impl::context_ptr;
+	using launch_type = toe_impl::launch_type;
+
+public:
+	toe()
+		: impl( std::make_shared<toe_impl>() )
+	{}
+
+	toe( context_ptr c )
+		: impl( std::make_shared<toe_impl>( c ) )
+	{}
+
+	~toe() = default;
+
+	void set_context( context_ptr c )
+	{
+		impl->set_context( c );
+	}
+
+	void launch( launch_type t = launch_type::sync )
+	{
+		impl->launch( t );
+	}
+
+	void pause()
+	{
+		impl->pause();
+	}
+
+	void resume()
+	{
+		impl->resume();
+	}
+
+	void quit()
+	{
+		impl->quit();
+	}
+
+	void join()
+	{
+		impl->join();
+	}
+
+	bool joinable()
+	{
+		return impl->joinable();
+	}
+
+	void sleep_for( long long time_us )
+	{
+		impl->sleep_for( time_us );
+	}
+
+	template<class Callback, class... Args>
+	void add_callback( Callback callback, Args&&... args )
+	{
+		impl->add_callback( callback, std::forward<Args>(args)... );
+	}
+
 };
 
 template<class Ret, class... Args, class RetGenerator = Ret>

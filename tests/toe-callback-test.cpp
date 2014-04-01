@@ -19,7 +19,7 @@ struct engine
 
 	void connect()
 	{
-		toe.launch( pac::toe::async );
+		toe.launch( pac::toe::launch_type::async );
 		toe.add_callback( pac::callback<void()>( &engine::on_connected, this ) );
 	}
 
@@ -122,11 +122,13 @@ struct root_controller
 connected_widget::connected_widget( connected_controller& c )
 	: con(c)
 {
-	con.notify_connected( std::bind( &connected_widget::on_engine_connected, this ) ).detach();
+	con.notify_connected(
+		std::bind( &connected_widget::on_engine_connected, this ) ).detach();
 }
 
-connected_controller::connected_controller( root_controller&p, pac::toe& t )
-	: parent( p ), toe( t ), sigfwd( parent.sigvoidfwd ), widget( *this ), sigfwdwidget( widget.connected_sig )
+connected_controller::connected_controller( root_controller& p, pac::toe& t )
+	: parent( p ), toe( t ), sigfwd( parent.sigvoidfwd ), widget( *this ),
+	  sigfwdwidget( widget.connected_sig )
 {}
 
 

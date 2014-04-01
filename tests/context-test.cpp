@@ -54,7 +54,7 @@ struct player
 	{
 		pac::callback<void()> cb = pac::callback<void()>( &player::running, this );
 		toe.add_callback( cb );
-		toe.launch( pac::toe::async );
+		toe.launch( pac::toe::launch_type::async );
 	}
 
 	void running()
@@ -105,7 +105,7 @@ void football_test()
 	std::unique_ptr<player> p3 { new player( 3, p2.get() ) };
 	std::unique_ptr<player> p4 { new player( 4, p3.get(), true ) };
 
-	std::this_thread::sleep_for( std::chrono::seconds(10) );
+	std::this_thread::sleep_for( std::chrono::seconds(6) );
 
 	p4->quit();
 	p3->quit();
@@ -124,7 +124,7 @@ void toe_callback_test()
 	pac::signal<void( int )> sig;
 	pac::toe toe;
 
-	toe.launch( pac::toe::async );
+	toe.launch( pac::toe::launch_type::async );
 
 	pac::callback<void( int )> toecb = pac::toe_callback( toe, cb );
 

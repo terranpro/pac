@@ -52,7 +52,7 @@ struct connected_controller
 {
 	root_controller& parent;
 	pac::toe& toe;
-	pac::signal_forward< pac::signal<void(int)>, void() > sigfwd;
+	pac::signal_forward< pac::signal_forward< pac::signal<void(int)>, void() >, void() > sigfwd;
 	connected_widget widget;
 	pac::signal_forward< pac::signal<void()>, void() > sigfwdwidget;
 

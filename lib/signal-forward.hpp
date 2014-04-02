@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Mon Feb 24 19:51:40 KST 2014
- * Last modified: Mon Mar 31 00:37:56 KST 2014
+ * Last modified: Wed Apr 02 10:30:54 KST 2014
  */
 
 #ifndef SIGNAL_FORWARD_HPP
@@ -403,9 +403,9 @@ template<template<class...> class SignalFwd,
          class... Other,
          class... Etc>
 struct sigfwd_gen< SignalFwd< Sig, Other... >, Etc... >
-	: public sigfwd_gen< Sig, Etc... >
+	: public sigfwd_gen< signal<Other...>, Etc... >
 {
-	using Parent = sigfwd_gen< Sig, Etc... >;
+	using Parent = sigfwd_gen< signal<Other...>, Etc... >;
 	using SignalType = SignalFwd< Sig, Other... >;
 	using InvokerType = typename Parent::InvokerType;
 };

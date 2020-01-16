@@ -40,7 +40,6 @@ struct Client
 	{
 		con_add =
 			server.sigadd.connect( &Client::OnAdd, this );
-		BARK;
 		con_sub =
 			server.sigsub.connect( &Client::OnSub, this );
 	}
@@ -127,15 +126,15 @@ int main(int, char *[])
 	auto testn1 = 3;
 
 	std::function< std::tuple<int,int>(int) > inf =
-		[]( int in ) { BARK; return std::make_tuple( in + 3, in + 5 ); };
+		[]( int in ) { return std::make_tuple( in + 3, in + 5 ); };
 
 	pac::callback<int(int,int)> mycb =
 		[]( int in1, int in2 ) { return in1 * in2 + 137; };
 
 	// std::function< int( bool ) > outf =
-	// 	[]( bool out ) { BARK; int r = out ? 1001 : 2002; return r; };
+	// 	[]( bool out ) { int r = out ? 1001 : 2002; return r; };
 	pac::callback< int( int ) > outf =
-		[]( int out ) { BARK; return out - 1; };
+		[]( int out ) { return out - 1; };
 
 	// forwarded signal test
 	auto testn2 = 5;

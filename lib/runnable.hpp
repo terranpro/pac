@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Tue Mar 11 17:40:26 KST 2014
- * Last modified: Sun Mar 16 19:22:49 KST 2014
+ * Last modified: Tue Sep 16 13:26:04 KST 2014
  */
 
 #ifndef RUNNABLE_HPP
@@ -116,7 +116,7 @@ public:
 		: rcon{}
 	{}
 
-	// Take Callback by value as its a handle (pac::callback<>)
+	// Take Callback by value as it's a handle (pac::callback<>)
 	// Otherwise, type deduction will resolve to a lvalue ref, and a ref
 	// to a local stack callback could be kept dangling and invoked
 	// later

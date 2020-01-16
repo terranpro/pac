@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:18:04 KST 2014
- * Last modified: Sun Mar 30 02:31:51 KST 2014
+ * Last modified: Tue Sep 16 13:23:14 KST 2014
  */
 
 #ifndef SIGNAL_HPP
@@ -36,16 +36,6 @@
 #include <iostream>
 
 #include "callback.hpp"
-
-//#define DEBUG_BARK 1
-
-#ifdef DEBUG_BARK
-#define BARK std::cout << __PRETTY_FUNCTION__ << ":" << __LINE__ << "\n"
-#define BARK_THIS std::cout << "this = " << this << "\n"
-#else
-#define BARK
-#define BARK_THIS
-#endif // DEBUG_BARK
 
 namespace pac {
 
@@ -79,7 +69,6 @@ struct connection
 
 		virtual ~signal_concept()
 		{
-			BARK;
 		}
 		virtual void disconnect()
 		{}
@@ -102,7 +91,6 @@ struct connection
 		}
 		~signal_reference()
 		{
-			BARK;
 			if (!detached)
 				disconnect();
 		}
@@ -129,16 +117,15 @@ struct connection
 
 	template<class Signal>
 	connection(Signal *sig, std::size_t i, typename Signal::slot_type *slot_)
-		: concept( new signal_reference<Signal>(sig, i, slot_) )
-	{ BARK; }
+		: concept( std::make_shared<signal_reference<Signal>>(sig, i, slot_) )
+	{}
 
 	connection()
-		: concept( new null_signal )
-	{ BARK; }
+		: concept( std::make_shared<null_signal>() )
+	{}
 
 	~connection()
 	{
-		BARK;
 	}
 
 	bool operator==(const connection& other) const
@@ -193,7 +180,6 @@ struct invoker<Ret(Args...)>
 		for ( ; it != end; ++it ) {
 			if ( it->second->blocked )
 				continue;
-			BARK;
 
 			results.push_back(
 				std::move( it->second->callback( std::forward<A>(args)... ) ) );
@@ -220,7 +206,6 @@ struct invoker<void(Args...)>
 		for ( ; it != end; ++it ) {
 			if ( it->second->blocked )
 				continue;
-			BARK;
 
 			it->second->callback( std::forward<A>(args)... );
 		}
@@ -237,7 +222,7 @@ public:
 	using callback_type = callback<Ret( Args... )>;
 	using slot_type = slot<callback_type>;
 
-	friend class invoker<Ret(Args...)>;
+	friend struct invoker<Ret(Args...)>;
 
 private:
 	std::unordered_map< std::size_t, std::shared_ptr<slot_type> > slots;
@@ -259,7 +244,6 @@ public:
 	template<class SlotType>
 	connection connect_slot( SlotType const& slot )
 	{
-		BARK;
 
 		auto slotptr = std::make_shared<SlotType>( slot );
 		connection con( this, next_id, slotptr.get() );
@@ -305,8 +289,6 @@ public:
 		else
 			slots.erase( it );
 
-		BARK;
-		BARK_THIS;
 	}
 
 	template<class... A>
@@ -365,55 +347,43 @@ private:
 template<class Signal>
 void connection::signal_reference<Signal>::disconnect()
 {
-	BARK;
-	BARK_THIS;
 
 	Signal *real_sig = static_cast<Signal *>(sig);
 
 	if (!real_sig) {
-		BARK;
 		return;
 	}
 
 	real_sig->disconnect( id );
-	BARK;
 }
 
 template<class Signal>
 void connection::signal_reference<Signal>::block()
 {
-	BARK;
-	BARK_THIS;
 
 	using slot_type = typename Signal::slot_type;
 
 	slot_type *real_slot = static_cast<slot_type *>(slot_);
 
 	if (!real_slot) {
-		BARK;
 		return;
 	}
 
 	real_slot->blocked = true;
-	BARK;
 }
 
 template<class Signal>
 void connection::signal_reference<Signal>::unblock()
 {
-	BARK;
-	BARK_THIS;
 	using slot_type = typename Signal::slot_type;
 
 	slot_type *real_slot = static_cast<slot_type *>(slot_);
 
 	if (!real_slot) {
-		BARK;
 		return;
 	}
 
 	real_slot->blocked = false;
-	BARK;
 }
 
 struct connection_block

@@ -14,7 +14,7 @@ include_directories(
   )
 
 set( CMAKE_CXX_FLAGS
-  ${CMAKE_CXX_FLAGS} "-std=c++11 -pthread -g -gdwarf-2"
+  ${CMAKE_CXX_FLAGS} "-std=c++1y -pthread -g -gdwarf-2"
   )
 
 pac_test( signal-test.cpp )

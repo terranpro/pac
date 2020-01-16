@@ -21,7 +21,7 @@
  *
  * Author: Brian Fransioli
  * Created: Sun Feb 09 20:15:18 KST 2014
- * Last modified: Sun Mar 30 21:49:13 KST 2014
+ * Last modified: Tue Sep 16 14:02:35 KST 2014
  */
 
 #ifndef CALLBACK_HPP
@@ -52,11 +52,11 @@ class callback< Ret(Args...) >
 
 		Ret operator()(Args... args)
 		{
-			return func( std::forward<Args>(args)... );
+			return (func)( std::forward<Args>(args)... );
 		}
 
 		model(Func f)
-			: func( f )
+			: func(f)
 		{}
 	};
 
@@ -89,12 +89,12 @@ public:
 
 	template<class Func>
 	callback(Func func)
-		: con( new model< Func >(func) )
+		: con( std::make_shared<model< Func >>(func) )
 	{}
 
 	template<class PMemFunc, class T>
 	callback(PMemFunc memfunc, T&& obj)
-		: con( new model_memfunc<PMemFunc, T>( memfunc, std::forward<T>(obj) ) )
+		: con( std::make_shared<model_memfunc<PMemFunc, T>>( memfunc, std::forward<T>(obj) ) )
 	{}
 
 	callback(callback&&) = default;
